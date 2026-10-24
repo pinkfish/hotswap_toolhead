@@ -46,7 +46,7 @@ FONT_HIDE = "(effects (font (size 1.27 1.27)) hide)"
 
 LAYOUT_NAMES = {
     id(design.STM32_LAYOUT): "STM32G0B1_LQFP48",
-    id(design.BUCK_LAYOUT): "BUCK_60V",
+    id(design.BUCK_LAYOUT): "LMR16006_SOT23_6",
     id(design.CAN_LAYOUT): "CAN_XCVR_SO8",
     id(design.USBLC6_LAYOUT): "USBLC6_2SC6",
     id(design.FET_LAYOUT): "MOSFET_8PIN",
@@ -219,7 +219,7 @@ def build_schematic():
 
     notes = [
         "24 V CAN heater/fan controller - generated from design.py. Each pin connects through a net label.",
-        "U1 pin numbers are names on purpose: map them to the chosen 60 V buck's datasheet before assigning a footprint.",
+        "U1 is TI LMR16006X (SOT-23-6): pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. D9 is its catch diode.",
         "J1 uses hotswap_toolhead:XT30PW-2+2-M: put the SnapEDA (or LCSC C19268030) footprint in footprints/hotswap_toolhead.pretty under that name.",
         "U3 pin 5: check the transceiver datasheet; R12 (DNP) can tie it to +3V3 if it is a VIO pin.",
         "Verify U6 pins against ST DS13560 (STM32G0B1 LQFP-48 pinout) before layout.",

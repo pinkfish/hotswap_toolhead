@@ -28,18 +28,18 @@ STM32_LAYOUT = (
                                   32, 33, 34, 35, 36, 37, 42, 43, 44, 45, 46, 47, 48]],
 )
 
-# Buck: pin "numbers" are deliberately names, so no real footprint will
-# match until the pins are mapped to the chosen part's datasheet.
+# Buck: TI LMR16006X (60 V, 0.6 A, 0.7 MHz), SOT-23-6 "DDC" package.
+# Pinout per TI datasheet: 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW.
 BUCK_LAYOUT = (
-    [("VIN", "VIN"), ("EN", "EN"), ("VCC", "VCC"), ("GND", "GND")],
-    [("BOOT", "BOOT"), ("SW", "SW"), ("FB", "FB"), ("PG", "PG")],
+    [(5, "VIN"), (4, "SHDN"), (2, "GND")],
+    [(1, "CB"), (6, "SW"), (3, "FB")],
 )
 CAN_LAYOUT = (
     [(1, "TXD"), (4, "RXD"), (8, "STBY"), (5, "PIN5_CHECK")],
     [(3, "VDD"), (7, "CANH"), (6, "CANL"), (2, "GND")],
 )
 USBLC6_LAYOUT = ([(1, "IO1"), (6, "IO1"), (2, "GND")], [(3, "IO2"), (4, "IO2"), (5, "VBUS")])
-FET_LAYOUT = ([(4, "G"), (1, "S"), (2, "S"), (3, "S")], [(5, "D"), (6, "D"), (7, "D"), (8, "D")])
+FET_LAYOUT = ([(4, "G"), (1, "S"), (2, "S"), (3, "S")], [(5, "D")])
 SOT3_LAYOUT = ([(1, "1"), (2, "2")], [(3, "3")])
 BAT54S_LAYOUT = ([(1, "A1"), (2, "K2")], [(3, "K1/A2")])
 TC2030_LAYOUT = ([(1, "VCC"), (2, "SWDIO"), (3, "NRST")], [(4, "SWCLK"), (5, "GND"), (6, "SWO")])
@@ -66,7 +66,7 @@ FP = {
     "SOIC8": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
     "LQFP48": "Package_QFP:LQFP-48_7x7mm_P0.5mm",
     "PPAK1212": "Package_SO:Vishay_PowerPAK_1212-8_Single",
-    "PPAKSO8": "Package_SO:Vishay_PowerPAK_SO-8_Single",
+    "PPAKSO8": "Package_SO:PowerPAK_SO-8_Single",
     "XTAL5032": "Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm",
     "F1206": "Fuse:Fuse_1206_3216Metric",
     "F1812": "Fuse:Fuse_1812_4532Metric",
@@ -99,7 +99,7 @@ PARTS = [
     two("F1", "R", "6.3A fast", "F1206", "VIN_RAW", "VIN_F", block="Power input"),
     two("D1", "D", "SMBJ33CA", "SMB", "VIN_F", "GND", block="Power input"),
     P("Q1", "box", "P-FET 60V >=8A", "PPAKSO8",
-      {1: "+24V", 2: "+24V", 3: "+24V", 4: "Q1_G", 5: "VIN_F", 6: "VIN_F", 7: "VIN_F", 8: "VIN_F"},
+      {1: "+24V", 2: "+24V", 3: "+24V", 4: "Q1_G", 5: "VIN_F"},
       block="Power input", layout=FET_LAYOUT),
     two("D2", "D", "12V zener", "SOD123", "+24V", "Q1_G", block="Power input"),
     two("R1", "R", "10k", "R0603", "Q1_G", "GND", block="Power input"),
@@ -111,13 +111,12 @@ PARTS = [
     two("D3", "D", "SS210", "SMA", "VIN_LOGIC", "VBUS", lcsc="C14996", block="Logic supply"),
     two("C4", "C", "10uF 50V X5R", "C1206", "VIN_LOGIC", "GND", lcsc="C13585", block="Logic supply"),
     two("C5", "C", "100nF", "C0603", "VIN_LOGIC", "GND", lcsc="C14663", block="Logic supply"),
-    P("U1", "box", "LMR36006 (map pins!)", "",
-      {"VIN": "VIN_LOGIC", "EN": "VIN_LOGIC", "VCC": "BUCK_VCC", "GND": "GND",
-       "BOOT": "BUCK_BOOT", "SW": "BUCK_SW", "FB": "BUCK_FB"},
+    P("U1", "box", "LMR16006XDDC", "SOT236",
+      {5: "VIN_LOGIC", 4: "VIN_LOGIC", 2: "GND", 1: "BUCK_BOOT", 6: "BUCK_SW", 3: "BUCK_FB"},
       block="Logic supply", layout=BUCK_LAYOUT),
     two("C6", "C", "100nF", "C0603", "BUCK_BOOT", "BUCK_SW", lcsc="C14663", block="Logic supply"),
-    two("C7", "C", "1uF", "C0603", "BUCK_VCC", "GND", lcsc="C15849", block="Logic supply"),
-    two("L1", "L", "10uH", "L4040", "BUCK_SW", "+3V3", block="Logic supply"),
+    two("D9", "D", "SS210", "SMA", "BUCK_SW", "GND", lcsc="C14996", block="Logic supply"),
+    two("L1", "L", "22uH (per datasheet)", "L4040", "BUCK_SW", "+3V3", block="Logic supply"),
     two("C8", "C", "22uF 25V X5R", "C1206", "+3V3", "GND", lcsc="C12891", block="Logic supply"),
     two("R2", "R", "FB top (datasheet)", "R0603", "+3V3", "BUCK_FB", block="Logic supply"),
     two("R3", "R", "10k", "R0603", "BUCK_FB", "GND", block="Logic supply"),
@@ -171,7 +170,7 @@ PARTS = [
     P("J2", "box", "Heater (Nano-Fit 2)", "NANOFIT2", {1: "+24V", 2: "HEAT_N"},
       block="Heater", layout=CONN2_LAYOUT),
     P("Q2", "box", "N-FET 60V <=30mR@2.5V", "PPAK1212",
-      {1: "GND", 2: "GND", 3: "GND", 4: "HEAT_G", 5: "HEAT_N", 6: "HEAT_N", 7: "HEAT_N", 8: "HEAT_N"},
+      {1: "GND", 2: "GND", 3: "GND", 4: "HEAT_G", 5: "HEAT_N"},
       block="Heater", layout=FET_LAYOUT),
     two("R13", "R", "10k", "R0603", "HEAT_PWM", "HEAT_G", block="Heater"),
     two("R14", "R", "10k", "R0603", "HEAT_PWM", "GND", block="Heater"),
@@ -180,7 +179,7 @@ PARTS = [
     P("J3", "box", "Fan (JST-SH 2 side)", "SH2H", {1: "FAN_P", 2: "FAN_N"},
       block="Fan", layout=CONN2_LAYOUT),
     P("Q3", "box", "N-FET 60V <=30mR@2.5V", "PPAK1212",
-      {1: "GND", 2: "GND", 3: "GND", 4: "FAN_G", 5: "FAN_N", 6: "FAN_N", 7: "FAN_N", 8: "FAN_N"},
+      {1: "GND", 2: "GND", 3: "GND", 4: "FAN_G", 5: "FAN_N"},
       block="Fan", layout=FET_LAYOUT),
     two("D5", "D", "SS210", "SMA", "FAN_P", "FAN_N", lcsc="C14996", block="Fan"),
     two("R15", "R", "1k", "R0603", "FAN_PWM", "FAN_G", block="Fan"),

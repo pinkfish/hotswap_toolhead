@@ -35,7 +35,7 @@ The 24 V rail goes straight to the heater and fan through the protection stage; 
 3. **Reverse polarity (Q1):** P-channel MOSFET, ≥60 V / ≥8 A, low R_DS(on) (e.g. SQJ461EP or similar), source to load, drain to input. Gate to GND through 10 kΩ, with a 12 V Zener (D2) gate–source to protect V_GS.
 4. **Bulk capacitance:** 1 × 47 µF / 50 V aluminium electrolytic, 105 °C long-life (≥5000 h) (not polymer: its higher internal resistance damps hot-plug ringing) plus 2 × 10 µF / 50 V X5R ceramic (JLCPCB basic; about 3 µF each at 24 V after DC-bias derating) on the 24 V rail, close to the heater and fan FETs.
 5. **Logic input OR (D7, D3):** +24V → D7 → VIN_LOGIC, and USB VBUS → D3 → VIN_LOGIC, both SS210 (100 V, 2 A Schottky, a JLCPCB basic part). The board can be programmed from USB alone, and the diodes stop 24 V reaching the USB host and VBUS reaching the heater rail.
-6. **24 V → 3.3 V buck (U1):** a 60 V-rated synchronous buck such as TI LMR36006 (4.2–60 V in, 600 mA), so it survives anything the TVS lets through. Inductor and output capacitor per its datasheet (about 10 µH and 22 µF). Feedback divider uses a 10 kΩ bottom resistor with the top resistor chosen from the datasheet for 3.3 V. Its 4.2 V minimum input still lets it run from VBUS through D3 (about 4.6 V). Check the package and minimum input on the exact part chosen. Total 3.3 V load is under 100 mA.
+6. **24 V → 3.3 V buck (U1):** TI LMR16006XDDC (4–60 V in, 600 mA, 0.7 MHz, SOT-23-6), so it survives anything the TVS lets through. It is non-synchronous, so it needs a catch diode (D9, SS210) from SW to GND. Inductor and output capacitor per its datasheet (about 22 µH and 22 µF). Feedback divider uses a 10 kΩ bottom resistor with the top resistor chosen from the datasheet for 3.3 V. Its 4 V minimum input lets it run from VBUS through D3 (about 4.6 V). Total 3.3 V load is under 100 mA.
 7. **Analog supply:** in the STM32G0B1CBT6's LQFP-48 package, VDDA is bonded to VDD on one pin (pin 6, VDD/VDDA) and VSSA to VSS (pin 7), but the ADC reference VREF+ is its own pin (pin 5). Feed VREF+ and the thermistor pull-up together from 3.3 V through FB1 (600 Ω @ 100 MHz), with 1 µF + 100 nF from VREF+ to pin 7, so the reading stays ratiometric. Leave the internal VREFBUF disabled (its default), since VREF+ is driven externally.
 
 LEDs: green on 3.3 V (power good) and blue status on PB5, each with a 1 kΩ resistor. There's no heater-on LED; Klipper reports the heater state.
@@ -145,7 +145,7 @@ About 60 placements and 7 resistor values. Part numbers are suggestions: check s
 
 | Ref | Part | Package | Qty | Notes |
 | --- | --- | --- | --- | --- |
-| U1 | 60 V synchronous buck, set to 3.3 V (e.g. LMR36006) | Per part | 1 | 4.2–60 V in; inductor and caps per datasheet |
+| U1 | TI LMR16006XDDC 60 V buck, set to 3.3 V | SOT-23-6 | 1 | 4–60 V in; D9 catch diode; inductor and caps per datasheet |
 | U3 | 3.3 V CAN transceiver, ±65 V fault-protected (e.g. MAX33012E) | SO-8 / TDFN-8 | 1 | Verify supply range and pinout |
 | U5 | USBLC6-2SC6 USB ESD | SOT-23-6 | 1 | |
 | U6 | STM32G0B1CBT7 MCU (105 °C grade; CBT6 is 85 °C) | LQFP-48 | 1 | |
@@ -156,7 +156,7 @@ About 60 placements and 7 resistor values. Part numbers are suggestions: check s
 | F2 | PTC resettable fuse, 0.75 A hold, ≥30 V | 1812 | 1 | Fan +24V |
 | D1 | SMBJ33CA bidirectional TVS | SMB | 1 | Stays off with a reversed supply |
 | D2 | 12 V Zener | SOD-123 | 1 | Q1 gate clamp |
-| D3, D5, D7 | SS210 Schottky, 100 V 2 A | SMA | 3 | USB OR, fan flyback, 24 V OR |
+| D3, D5, D7, D9 | SS210 Schottky, 100 V 2 A | SMA | 4 | USB OR, fan flyback, 24 V OR, buck catch diode |
 | D4 | NUP2105L CAN ESD | SOT-23 | 1 | |
 | D6 | BAT54S dual Schottky | SOT-23 | 1 | Sensor clamp |
 | LED1, LED2 | Green (3V3 power), blue (status) | 0603 | 2 | |
@@ -184,7 +184,7 @@ About 60 placements and 7 resistor values. Part numbers are suggestions: check s
 | --- | --- | --- |
 | 100 nF decoupling | Yageo CC0603KRX7R9BB104, 50 V X7R 0603 | C14663 |
 | FB1 ferrite bead | Sunlord GZ1608D601TF, 600 Ω @ 100 MHz 0603 | C1002 |
-| D3, D5, D7 Schottky | MDD SS210, 100 V 2 A SMA | C14996 |
+| D3, D5, D7, D9 Schottky | MDD SS210, 100 V 2 A SMA | C14996 |
 | CAN termination | Uni-Royal 120 Ω 1% 0805 | C17437 |
 | 8 MHz crystal | YXC X50328MSB2GI, 5032, 20 pF load | C115962 |
 | 33 pF load caps | Samsung CL10C330JB8NNNC, C0G 0603 | C1663 |
@@ -289,5 +289,5 @@ Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID 
 - [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, CAN order set by the swap footprints
 - [x] Analog supply settled: VREF+ is a separate pin (5), VDD/VDDA bonded on pin 6, so FB1 is fitted
 - [x] Mounting settled: two M3 holes on the sides, 35 mm apart; fan settled at 0.5 A or less
-- [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the 60 V buck needs 4.2 V minimum)
+- [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the buck needs 4 V minimum)
 - [ ] Prototype check: measure Q2's case temperature with a thermocouple during a long print in the enclosed printer; it should stay under about 110 °C

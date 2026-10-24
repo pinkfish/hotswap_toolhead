@@ -17,7 +17,7 @@ A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan
 
 ## Status
 
-Schematic complete; PCB has the outline, mounting holes and a placement script, and needs routing. Before layout, see the **Must-do** list in `hardware/README.md` (buck pin mapping, and dropping the SnapEDA XT30(2+2) footprint into `hardware/footprints/`).
+Schematic complete; PCB has the outline, mounting holes and a placement script, and needs routing. Before layout, see the **Must-do** list in `hardware/README.md` (dropping the SnapEDA or LCSC XT30(2+2) footprint into `hardware/footprints/`).
 
 ## Regenerating the KiCad files
 

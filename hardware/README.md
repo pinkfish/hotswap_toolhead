@@ -7,7 +7,7 @@ Generated from `tools/design.py` (the netlist) by `tools/gen_kicad.py`. Opens in
 | File | Contents |
 | --- | --- |
 | `toolhead.kicad_pro` | Project file – open this in KiCad |
-| `toolhead.kicad_sch` | Full schematic: 69 parts, 42 nets, grouped by function. Every pin is tied to its net with a net label, so there are no wires to trace. |
+| `toolhead.kicad_sch` | Full schematic: 69 parts, 41 nets, grouped by function. Every pin is tied to its net with a net label, so there are no wires to trace. |
 | `toolhead.kicad_pcb` | Board starter: 42 × 24 mm outline, two isolated M3 holes 35 mm apart, layout notes |
 | `toolhead.kicad_dru` | Custom design rules: high-current track widths, 24 V clearance, USB pair |
 | `place_footprints.py` | Puts every footprint on the floorplan from the spec after you import them |
@@ -20,7 +20,7 @@ The schematic was checked by re-parsing the file and rebuilding the netlist from
 ## Getting to a routed board
 
 1. Open `toolhead.kicad_pro`. Run ERC in the schematic.
-2. Fix the **must-do items** below (U1 pins, J1 footprint).
+2. Add the J1 footprint (see **Must-do** below).
 3. In the PCB editor: **Tools → Update PCB from Schematic (F8)**. Footprints load from KiCad's standard libraries.
 4. **Tools → Scripting Console**, then run:
    `exec(open('/full/path/to/place_footprints.py').read())`
@@ -32,14 +32,15 @@ This is a placement starting point, not a routed layout. Routing a 3 A heater pa
 
 ## Must-do before layout
 
-- **U1 (60 V buck):** pin "numbers" are names (VIN, SW, FB…) on purpose, so no footprint can be wired wrong by accident. Pick the part (LMR36006 or equivalent), then edit the symbol's pin numbers to match its datasheet and assign the footprint. Set R2 from the datasheet's feedback formula for 3.3 V with R3 = 10 kΩ.
+- **U1 (TI LMR16006XDDC, 60 V buck):** footprint `Package_TO_SOT_SMD:SOT-23-6`, pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. It is non-synchronous, so D9 (SS210) is its catch diode from SW to GND. Confirm the pinout against TI's datasheet, set L1 from its inductor table (about 22 µH at 0.7 MHz), and set R2 from its feedback formula for 3.3 V with R3 = 10 kΩ.
 - **J1 (XT30PW(2+2)-M.G.B, LCSC C19268030):** the schematic points at `hotswap_toolhead:XT30PW-2+2-M`, a project library already registered in `fp-lib-table`. Download the footprint from SnapEDA (or import it from LCSC), save it as `footprints/hotswap_toolhead.pretty/XT30PW-2+2-M.kicad_mod`, and check its pad numbers: 1 = power +, 2 = power −, 3 = signal S1, 4 = signal S2. Step-by-step instructions are in that folder's README.
 
 ## Check against datasheets
 
+- **Q1–Q3 PowerPAK footprints:** KiCad's `*_Single` PowerPAK footprints have 5 pads (1–3 source, 4 gate, 5 drain tab), and the symbols match that.
+
 - **U6 STM32G0B1 pinout:** from the G0 LQFP-48 pinout (VREF+ pin 5, VDD/VDDA 6, VSS/VSSA 7, PB0/PB1 19/20, PB13 25, PA11/12 33/34). Confirm against ST DS13560.
 - **U3 CAN transceiver pin 5:** varies by part. R12 (DNP) can tie it to +3V3 if it is a VIO pin; otherwise leave it open.
-- **Q1–Q3:** footprints assume the standard PowerPAK pinout (1–3 source, 4 gate, 5–8 drain). Confirm for the chosen FETs.
 - **SW1/SW2:** footprint is a top-push TL3342 placeholder. Swap for the side-push switch you choose.
 - **J2 Nano-Fit and inductor L1:** placeholder footprints from the right families; match to the exact part numbers.
 - **Crystal Y1:** 20 pF load with 33 pF caps – check oscillator gain margin (ST AN2867) on the first board.
