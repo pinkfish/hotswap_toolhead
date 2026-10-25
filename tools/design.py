@@ -42,7 +42,6 @@ USBLC6_LAYOUT = ([(1, "IO1"), (6, "IO1"), (2, "GND")], [(3, "IO2"), (4, "IO2"), 
 FET_LAYOUT = ([(4, "G"), (1, "S"), (2, "S"), (3, "S")], [(5, "D")])
 SOT3_LAYOUT = ([(1, "1"), (2, "2")], [(3, "3")])
 BAT54S_LAYOUT = ([(1, "A1"), (2, "K2")], [(3, "K1/A2")])
-TC2030_LAYOUT = ([(1, "VCC"), (2, "SWDIO"), (3, "NRST")], [(4, "SWCLK"), (5, "GND"), (6, "SWO")])
 XT30_LAYOUT = ([(1, "P+"), (2, "P-")], [(3, "S1"), (4, "S2")])
 CONN2_LAYOUT = ([(1, "1"), (2, "2")], [])
 CONN4_LAYOUT = ([(1, "1"), (2, "2"), (3, "3"), (4, "4")], [])
@@ -78,13 +77,12 @@ FP = {
     "XTAL5032": "Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm",
     "F1206": "Fuse:Fuse_1206_3216Metric",
     "F1812": "Fuse:Fuse_1812_4532Metric",
-    "SW": "Button_Switch_SMD:SW_SPST_TL3342",
+    "SW": "Button_Switch_SMD:SW_SPST_EVQP7C",  # side-push, 3.5 x 2.9 mm
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
     "HDR2": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-    "GH6H": "Connector_JST:JST_GH_SM06B-GHS-TB_1x06-1MP_P1.25mm_Horizontal",
+    "NANOFIT6": "Connector_Molex:Molex_Nano-Fit_105314-xx06_2x03_P2.50mm_Horizontal",
     "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
     "NANOFIT2": "Connector_Molex:Molex_Nano-Fit_105313-xx02_1x02_P2.50mm_Horizontal",
-    "TC2030": "Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical",
 }
 
 
@@ -131,7 +129,7 @@ PARTS = [
     P("U6", "box", "STM32G0B1CBT7", "LQFP48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
        10: "NRST", 11: "FAN_PWM", 12: "SENS_IN", 14: "TH_ADC", 19: "CAN_RX", 20: "CAN_TX",
-       25: "HEAT_PWM", 33: "USB_D_N", 34: "USB_D_P", 35: "SWDIO", 36: "SWCLK",
+       25: "HEAT_PWM", 33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
        44: "LED_STAT"},
       block="MCU", layout=STM32_LAYOUT),
     two("C9", "C", "100nF", "C0603", "+3V3", "GND", lcsc="C14663", block="MCU"),
@@ -146,8 +144,6 @@ PARTS = [
     two("SW1", "R", "RESET", "SW", "NRST", "GND", block="MCU"),
     two("SW2", "R", "BOOT", "SW", "+3V3", "BOOT_SW", block="MCU"),
     two("R4", "R", "1k", "R0603", "BOOT_SW", "SWCLK", block="MCU"),
-    P("J6", "box", "TC2030 SWD", "TC2030",
-      {1: "+3V3", 2: "SWDIO", 3: "NRST", 4: "SWCLK", 5: "GND"}, block="MCU", layout=TC2030_LAYOUT),
     two("R5", "R", "1k", "R0603", "+3V3", "LED1_A", block="MCU"),
     two("LED1", "D", "green", "LED0603", "GND", "LED1_A", block="MCU"),
     two("R6", "R", "1k", "R0603", "LED_STAT", "LED2_A", block="MCU"),
@@ -189,8 +185,9 @@ PARTS = [
     two("R14", "R", "10k", "R0603", "HEAT_PWM", "GND", block="Heater"),
     # ---------------- Fan ----------------
     two("F2", "R", "PTC 0.75A hold 30V", "F1812", "+24V", "FAN_P", block="Fan"),
-    # One latching 6-pin plug for fan, thermistor and a 2-wire switch sensor.
-    P("J3", "box", "Fan/therm/sensor (JST-GH 6)", "GH6H",
+    # One latching 2x3 right-angle plug for fan, thermistor and a 2-wire switch
+    # sensor; same Nano-Fit terminals as the heater plug.
+    P("J3", "box", "Fan/therm/sensor (Nano-Fit 2x3)", "NANOFIT6",
       {1: "FAN_P", 2: "FAN_N", 3: "TH_SIG", 4: "GND", 5: "SENS", 6: "GND"},
       block="Fan", layout=CONN6_LAYOUT),
     P("Q3", "box", "N-FET 60V <=30mR@2.5V", "PPAK1212",

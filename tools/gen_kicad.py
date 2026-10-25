@@ -52,7 +52,6 @@ LAYOUT_NAMES = {
     id(design.FET_LAYOUT): "MOSFET_8PIN",
     id(design.SOT3_LAYOUT): "SOT23_3",
     id(design.BAT54S_LAYOUT): "BAT54S",
-    id(design.TC2030_LAYOUT): "TC2030",
     id(design.XT30_LAYOUT): "XT30_2P2",
     id(design.CONN2_LAYOUT): "CONN_2",
     id(design.CONN4_LAYOUT): "CONN_4",
@@ -323,7 +322,6 @@ FLOORPLAN = {
     "J5": (38.5, 4.5, 270, "F"), "U5": (35.5, 4.5, 0, "F"),
     "SW1": (40.0, 18.0, 270, "F"), "SW2": (40.0, 21.5, 270, "F"),
     "JP2": (31.0, 12.0, 0, "F"), "D6": (29.0, 16.0, 0, "F"),
-    "J6": (24.0, 15.5, 0, "B"),
 }
 
 

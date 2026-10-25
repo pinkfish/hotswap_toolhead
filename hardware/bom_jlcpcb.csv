@@ -19,9 +19,9 @@ Comment,Designator,Footprint,LCSC Part #
 600R@100MHz,FB1,L_0603_1608Metric,C1002
 8MHz 20pF,Y1,Crystal_SMD_5032-2Pin_5.0x3.2mm,C115962
 BAT54S,D6,SOT-23,
-BOOT,SW2,SW_SPST_TL3342,
+BOOT,SW2,SW_SPST_EVQP7C,
 FB top (datasheet),R2,R_0603_1608Metric,
-Fan/therm/sensor (JST-GH 6),J3,JST_GH_SM06B-GHS-TB_1x06-1MP_P1.25mm_Horizontal,
+Fan/therm/sensor (Nano-Fit 2x3),J3,Molex_Nano-Fit_105314-xx06_2x03_P2.50mm_Horizontal,
 Heater (Nano-Fit 2),J2,Molex_Nano-Fit_105313-xx02_1x02_P2.50mm_Horizontal,
 LMR16006XDDC,U1,SOT-23-6,
 MAX33012E (check pin 5),U3,SOIC-8_3.9x4.9mm_P1.27mm,
@@ -30,11 +30,10 @@ NTC/PT1000,JP2,PinHeader_1x02_P2.54mm_Vertical,
 NUP2105L,D4,SOT-23,
 P-FET 60V >=8A,Q1,PowerPAK_SO-8_Single,
 PTC 0.75A hold 30V,F2,Fuse_1812_4532Metric,
-RESET,SW1,SW_SPST_TL3342,
+RESET,SW1,SW_SPST_EVQP7C,
 SMBJ33CA,D1,D_SMB,
 SS210,"D3,D5,D7,D9",D_SMA,C14996
 STM32G0B1CBT7,U6,LQFP-48_7x7mm_P0.5mm,
-TC2030 SWD,J6,Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical,
 TERM,JP1,SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm,
 USB-C (HRO TYPE-C-31-M-12),J5,USB_C_Receptacle_HRO_TYPE-C-31-M-12,C165948
 USBLC6-2SC6,U5,SOT-23-6,

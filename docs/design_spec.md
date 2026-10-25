@@ -4,7 +4,7 @@ Oct 23, 2026
 
 ## Overview and assumptions
 
-A roughly 42 × 24 mm, 2-layer board with M3 mounting holes on the left and right sides that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (fan, thermistor and switch share one 6-pin JST-GH plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
+A roughly 42 × 24 mm, 2-layer board with M3 mounting holes on the left and right sides that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (fan, thermistor and switch share one 2×3 Nano-Fit plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
 
 Design targets, chosen where the request left them open:
 
@@ -68,7 +68,7 @@ The MCU is an STM32G0B1CB in the 105 °C temperature grade (order code ending T7
 | Thermistor | PA3 | ADC1_IN3 | RC-filtered, clamped |
 | Switch sensor | PA1 | GPIO | 10 kΩ pull-up to 3.3 V, 1 kΩ + 100 nF filter; switch closes to GND |
 | Status LED | PB5 | GPIO | Blue LED, 1 kΩ to GND |
-| SWDIO | PA13 | SWD | To debug pads |
+| SWDIO | PA13 | SWD | Not broken out (no SWD header) |
 | SWCLK / BOOT0 | PA14 | SWD / BOOT0 | BOOT button (SW2) to 3.3 V through 1 kΩ |
 | HSE | PF0 / PF1 | OSC_IN / OSC_OUT | 8 MHz, 20 pF-load crystal with 2 × 33 pF C0G load caps (adjust for board stray capacitance; check oscillator gain margin per ST AN2867) |
 | Reset | NRST | — | 100 nF to GND, RESET button (SW1) to GND |
@@ -96,7 +96,7 @@ The fan uses the same direct-drive low-side topology as the heater, with a flyba
 - **Snubber cap (C):** optional 100 nF / 50 V across the output footprint, unpopulated by default.
 - **PWM:** hardware PWM on PA0 (TIM2_CH1). Use a low frequency (about 100 Hz–1 kHz) for 2-wire fans to avoid whine and stalling. 25 kHz only applies to 4-wire fans with their own PWM input, and it would also cause noticeable switching loss with the 1 kΩ gate resistor.
 
-The fan shares J3, a JST-GH rated 1 A per pin, so keep the fan at 0.5 A or less. A resettable PTC fuse (F2: 0.75 A hold at 25 °C, rated ≥30 V, 1812; a PTC's hold current drops to roughly two-thirds at 70 °C, so this size still carries a 0.5 A fan in a hot chamber without nuisance trips) in the fan's +24V line protects the connector and traces if the fan cable shorts, since the 6.3 A main fuse would never blow in time. If you later want tach feedback, PA2 is free and can be broken out to a third pin with a 10 kΩ pull-up to 3.3 V.
+The fan shares J3, a 2×3 Nano-Fit, so keep the fan at 0.5 A or less. A resettable PTC fuse (F2: 0.75 A hold at 25 °C, rated ≥30 V, 1812; a PTC's hold current drops to roughly two-thirds at 70 °C, so this size still carries a 0.5 A fan in a hot chamber without nuisance trips) in the fan's +24V line protects the connector and traces if the fan cable shorts, since the 6.3 A main fuse would never blow in time. If you later want tach feedback, PA2 is free and can be broken out to a third pin with a 10 kΩ pull-up to 3.3 V.
 
 ## Sensor input
 
@@ -112,33 +112,31 @@ Only one sensor-type assumption matters here: if you plan to use a thermocouple 
 
 ## USB debug header
 
-Debugging uses a USB-C receptacle (USB 2.0 Full Speed) for flashing and serial logs, plus a Tag-Connect footprint for SWD. The USB-C receptacle is about 3.2 mm tall; nothing else on the board is over 3 mm.
+Debugging uses a USB-C receptacle (USB 2.0 Full Speed) for flashing and serial logs. There is no SWD header; USB DFU and Katapult cover flashing and recovery. The USB-C receptacle is about 3.2 mm tall; nothing else on the board is over 3 mm.
 
 - **USB-C (J5):** HRO TYPE-C-31-M-12 16-pin receptacle (LCSC C165948). Both D+ pins and both D− pins are tied together so the plug works either way up; SBU is unused; shell to GND. Any USB-C cable works.
 - **CC (R20, R21):** 5.1 kΩ from CC1 and CC2 to GND, so a USB-C host or charger recognises a device and turns VBUS on.
 - **ESD (U5):** USBLC6-2SC6 on D+/D−/VBUS, right at the header.
 - **Data lines:** D+ → PA12, D− → PA11, routed as a 90 Ω differential pair and kept short.
 - **VBUS:** to VIN_LOGIC through D3 (see Power), plus 10 µF. 
-- **SWD (J6):** Tag-Connect TC2030-NL footprint (no part fitted) carrying 3.3V, SWDIO (PA13), SWCLK (PA14), NRST and GND for an ST-Link or J-Link.
-- **BOOT and RESET:** two side-push right-angle tactile switches (SW1 RESET, SW2 BOOT, about 3.5 × 3 mm each) on the right edge next to J5, reachable with the board mounted. Hold BOOT and tap RESET to enter the ROM DFU bootloader. On the STM32G0 the BOOT0 pin is only read when the nBOOT_SEL option bit is cleared, so set nBOOT_SEL = 0 over SWD during first programming. A blank chip enters DFU regardless.
+- **BOOT and RESET:** two side-push right-angle tactile switches (SW1 RESET, SW2 BOOT, about 3.5 × 3 mm each) on the right edge next to J5, reachable with the board mounted. Hold BOOT and tap RESET to enter the ROM DFU bootloader. On the STM32G0 the BOOT0 pin is only read when the nBOOT_SEL option bit is cleared, so set nBOOT_SEL = 0 over USB DFU (STM32CubeProgrammer, Option Bytes tab) during first programming, before flashing Katapult. A blank chip enters DFU regardless, and once Katapult is in, double-tapping RESET enters Katapult even if the BOOT button is ignored.
 
 What USB gives you: DFU flashing, Katapult flashing, Klipper's USB-serial mode for bench testing without a CAN adapter, and USB-to-CAN bridge mode if this board should ever be the CAN master. Bench note: with USB connected to a PC and 24 V connected at the same time, the PC and printer grounds are tied through the USB cable. If CAN errors appear while debugging, use a laptop on battery or an isolated USB adapter.
 
 ## Connectors and pinouts
 
-Power and CAN come in on one Amass XT30(2+2) hybrid connector: two heavy power contacts for 24 V and GND plus two small signal contacts for CAN_H and CAN_L. The heater keeps a Nano-Fit for current, fan, thermistor and a switch sensor share one latching 6-pin JST-GH, and USB is USB-C.
+Power and CAN come in on one Amass XT30(2+2) hybrid connector: two heavy power contacts for 24 V and GND plus two small signal contacts for CAN_H and CAN_L. The heater keeps a Nano-Fit for current, fan, thermistor and a switch sensor share one latching 2×3 right-angle Nano-Fit (same terminals as the heater plug), and USB is USB-C. Power/CAN and USB sit on the top edge; the heater and the 2×3 sit on the bottom edge with their plugs pointing down, overhanging the edge by about 3 mm.
 
 | Ref | Function | Connector | Pin 1 | Pin 2 | Pin 3 | Pin 4 |
 | --- | --- | --- | --- | --- | --- | --- |
 | J1 | 24 V + CAN in | Amass XT30PW(2+2)-M, right-angle (power pins ≈15 A, signal pins for CAN) | +24V (power) | GND (power) | CAN_H (signal) | CAN_L (signal) |
 | J2 | Heater | Molex Nano-Fit 2.5 mm, 1×2, right-angle | +24V (fused) | HEATER− (FET drain) | — | — |
-| J3 | Fan / thermistor / switch | JST-GH 1.25 mm, 6-pin, side-entry, latching (1 A per pin) | +24V via F2 (PTC) | FAN− (FET drain) | TH_SIG | GND (thermistor return); 5 SENS; 6 GND |
+| J3 | Fan / thermistor / switch | Molex Nano-Fit 2.5 mm, 2×3, right-angle (105314-xx06), latching | +24V via F2 (PTC) | FAN− (FET drain) | TH_SIG | GND (thermistor return); 5 SENS; 6 GND |
 | J5 | USB | USB-C 16-pin (USB 2.0) | VBUS | D− | D+ | GND, CC1/CC2 via 5.1 kΩ |
-| J6 | SWD | Tag-Connect TC2030-NL footprint | 3.3V | SWDIO | SWCLK | NRST, GND |
 | JP1 | CAN termination | Solder jumper (2-pad) | — | — | — | — |
 | JP2 | PT1000 pull-up | 2-pin 2.54 mm header + shunt | — | — | — | — |
 
-The XT30 housing keys the power polarity, but which small pin carries CAN_H and which carries CAN_L varies between BTT and Voron-style boards and even between revisions, so there's no single cable to copy. Instead, the two signal pins pass through a CAN swap block of four 0603 0 Ω footprints: fit the straight pair by default (S1 = CAN_H, S2 = CAN_L), or the crossed pair if your cable is wired the other way. A reversed pair doesn't damage anything; the board just won't appear on the bus until it's swapped. Check your cable against the controller-end silkscreen before the first power-up. With the fan on JST-GH, keep the fan at 0.5 A or less for margin under the connector's 1 A rating. JST-GH housings are typically rated to about +85 °C including contact heating, so mount the board where the chamber air stays below that, away from the heater block's radiant heat.
+The XT30 housing keys the power polarity, but which small pin carries CAN_H and which carries CAN_L varies between BTT and Voron-style boards and even between revisions, so there's no single cable to copy. Instead, the two signal pins pass through a CAN swap block of four 0603 0 Ω footprints: fit the straight pair by default (S1 = CAN_H, S2 = CAN_L), or the crossed pair if your cable is wired the other way. A reversed pair doesn't damage anything; the board just won't appear on the bus until it's swapped. Check your cable against the controller-end silkscreen before the first power-up. Keep the fan at 0.5 A or less (F2 trips above that). Nano-Fit housings are rated to +105 °C, but USB-C and other plastics are typically rated to about +85 °C including contact heating, so mount the board where the chamber air stays below that, away from the heater block's radiant heat.
 
 ## Bill of materials
 
@@ -175,8 +173,8 @@ About 60 placements and 7 resistor values. Part numbers are suggestions: check s
 | C | 22 µF 25 V X5R 1206, 10 µF 25 V X5R 0805, 1 µF 50 V X5R, 100 nF 50 V X7R, 33 pF C0G | 0402–0805 | ~13 | All JLCPCB basic: C12891, C15850, C15849, C14663, C1663 |
 | J1 | Amass XT30PW(2+2)-M.G.B | Through-hole, right-angle | 1 | 24 V + CAN; LCSC C19268030; footprint from SnapEDA in the project library |
 | J2 | Molex Nano-Fit 1×2 right-angle | SMD/TH per series | 1 | Heater |
-| J3 | JST-GH 6-pin side-entry (SM06B-GHS-TB) | 1.25 mm | 1 | Fan, thermistor, switch sensor |
-| J5 | USB-C 16-pin, HRO TYPE-C-31-M-12 (C165948) | 0.5 mm | 1 | USB; J6 is a footprint only |
+| J3 | Molex Nano-Fit 2×3 right-angle (105314-xx06) | 2.5 mm | 1 | Fan, thermistor, switch sensor |
+| J5 | USB-C 16-pin, HRO TYPE-C-31-M-12 (C165948) | 0.5 mm | 1 | USB |
 | R20, R21 | 5.1 kΩ (C23186) | 0603 | 2 | USB-C CC pull-downs |
 | R22, R23, C20 | 10 kΩ, 1 kΩ, 100 nF | 0603 | 3 | Switch sensor pull-up and filter |
 | JP2 | 2-pin 2.54 mm header + shunt | Through-hole | 1 | NTC / PT1000 select |
@@ -203,9 +201,9 @@ Target a 42 × 24 mm, 2-layer, 1.6 mm board with 1 oz copper (2 oz would crowd t
 
 - **Mounting holes (left and right sides):** two M3 holes, 3.2 mm plated drill with a 6 mm pad and a 6.5 mm component keep-out. The holes are isolated from GND by default, with an optional bond footprint beside each (0 Ω, or 1 MΩ ∥ 4.7 nF) so a metal mount tied to the printer frame doesn't create a ground loop through the CAN cable. They are centred on the board's horizontal centreline 3.5 mm in from each short edge, 35 mm apart centre-to-centre.
 - **Left side:** J1 (XT30 2+2, about 10 mm wide) on the left edge beside the left mounting hole, then F1, D1, Q1 and the bulk caps in a straight line inward. CAN ESD and the JP1 termination pads sit right behind J1's signal pins.
-- **Top edge:** J2 (heater Nano-Fit) and J3 (fan/thermistor/switch GH), with Q2, Q3 and D5 directly behind them so the high-current loop is short. Keep the gate series resistors right at the FETs and the pull-downs at the MCU pins.
+- **Top edge:** J2 (heater Nano-Fit) (see the connector section for the current edge assignment), with Q2, Q3 and D5 directly behind them so the high-current loop is short. Keep the gate series resistors right at the FETs and the pull-downs at the MCU pins.
 - **Centre:** U6 (MCU) with Y1 under 5 mm from PF0/PF1, U3 between J1 and the MCU's PB0/PB1. U1 and its inductor go on the far side of the MCU from the thermistor input.
-- **Right side:** J5 (USB-C) plus the side-push RESET (SW1) and BOOT (SW2) buttons on the right edge, beside the right mounting hole, with U5 at the USB header. The TC2030 SWD footprint can go on the bottom side, under the MCU.
+- **Right side:** J5 (USB-C) plus the side-push RESET (SW1) and BOOT (SW2) buttons on the right edge, beside the right mounting hole, with U5 at the USB header.
 - **Thermistor:** RC filter and clamp close to PA3, away from the heater traces; run TH_SIG from J3 away from FAN_N.
 
 **Current and copper:**
@@ -240,7 +238,7 @@ Estimated temperatures at full heater power (72 W, 3 A, 24 V) and 70 °C ambient
 
 These are estimates from typical thermal resistances (about 70 °C/W for a 3 × 3 mm FET on 150 mm² of copper per side), so measure Q2's case temperature with a thermocouple during a long print on the first prototype. Temperature-sensitive choices made for this environment: the MCU's 105 °C grade (the common CBT6 is only rated to 85 °C), a 105 °C long-life electrolytic (an 85 °C part would last under a year of continuous running at 70 °C), and a fan PTC sized for its hold current at temperature. The crystal and the 1–22 µF ceramics are 85 °C-rated JLCPCB basic parts: about 35 °C of margin at the expected 50 °C, and still within rating at the 70 °C worst case.
 
-Mounting: keep the board away from the heater block's radiant heat, ideally in the hotend fan's airflow, on standoffs so air can pass behind it. The JST-GH and USB-C connectors set the practical ceiling of about 85 °C.
+Mounting: keep the board away from the heater block's radiant heat, ideally in the hotend fan's airflow, on standoffs so air can pass behind it. The USB-C connector sets the practical ceiling of about 85 °C.
 
 Supply voltage: the heater's resistance is fixed, so running at 30 V instead of 24 V raises heater current to about 3.75 A and Q2's loss by about 55%. At 30 V, set Klipper's `max_power` to 0.64 to hold heater power at 72 W.
 
