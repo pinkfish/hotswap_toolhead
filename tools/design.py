@@ -46,6 +46,14 @@ TC2030_LAYOUT = ([(1, "VCC"), (2, "SWDIO"), (3, "NRST")], [(4, "SWCLK"), (5, "GN
 XT30_LAYOUT = ([(1, "P+"), (2, "P-")], [(3, "S1"), (4, "S2")])
 CONN2_LAYOUT = ([(1, "1"), (2, "2")], [])
 CONN4_LAYOUT = ([(1, "1"), (2, "2"), (3, "3"), (4, "4")], [])
+CONN6_LAYOUT = ([(1, "FAN+"), (2, "FAN-"), (3, "THERM"), (4, "TGND"), (5, "SENS"), (6, "GND")], [])
+# USB-C 16-pin receptacle (USB 2.0): both rows of D+/D- and VBUS/GND, CC per row.
+USBC_LAYOUT = (
+    [("A4", "VBUS"), ("A9", "VBUS"), ("B4", "VBUS"), ("B9", "VBUS"), ("A5", "CC1"), ("B5", "CC2"),
+     ("A8", "SBU1"), ("B8", "SBU2")],
+    [("A6", "D+"), ("B6", "D+"), ("A7", "D-"), ("B7", "D-"), ("A1", "GND"), ("A12", "GND"),
+     ("B1", "GND"), ("B12", "GND"), ("SH", "SHIELD")],
+)
 
 # Footprints (KiCad 8 standard libraries). "" = assign after choosing part.
 FP = {
@@ -73,9 +81,8 @@ FP = {
     "SW": "Button_Switch_SMD:SW_SPST_TL3342",
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
     "HDR2": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
-    "SH2H": "Connector_JST:JST_SH_SM02B-SRSS-TB_1x02-1MP_P1.00mm_Horizontal",
-    "SH2V": "Connector_JST:JST_SH_BM02B-SRSS-TB_1x02-1MP_P1.00mm_Vertical",
-    "SH4H": "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
+    "GH6H": "Connector_JST:JST_GH_SM06B-GHS-TB_1x06-1MP_P1.25mm_Horizontal",
+    "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
     "NANOFIT2": "Connector_Molex:Molex_Nano-Fit_105313-xx02_1x02_P2.50mm_Horizontal",
     "TC2030": "Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical",
 }
@@ -123,7 +130,7 @@ PARTS = [
     # ---------------- MCU ----------------
     P("U6", "box", "STM32G0B1CBT7", "LQFP48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
-       10: "NRST", 11: "FAN_PWM", 14: "TH_ADC", 19: "CAN_RX", 20: "CAN_TX",
+       10: "NRST", 11: "FAN_PWM", 12: "SENS_IN", 14: "TH_ADC", 19: "CAN_RX", 20: "CAN_TX",
        25: "HEAT_PWM", 33: "USB_D_N", 34: "USB_D_P", 35: "SWDIO", 36: "SWCLK",
        44: "LED_STAT"},
       block="MCU", layout=STM32_LAYOUT),
@@ -160,8 +167,14 @@ PARTS = [
     two("C16", "C", "100nF", "C0603", "+3V3", "GND", lcsc="C14663", block="CAN"),
     two("R12", "R", "0R", "R0603", "CAN_P5", "+3V3", dnp=True, block="CAN"),
     # ---------------- USB ----------------
-    P("J5", "box", "USB (JST-SH 4)", "SH4H", {1: "VBUS", 2: "USB_D_N", 3: "USB_D_P", 4: "GND"},
-      block="USB", layout=CONN4_LAYOUT),
+    P("J5", "box", "USB-C (HRO TYPE-C-31-M-12)", "USBC16",
+      {"A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS", "A5": "USB_CC1", "B5": "USB_CC2",
+       "A6": "USB_D_P", "B6": "USB_D_P", "A7": "USB_D_N", "B7": "USB_D_N",
+       "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND", "SH": "GND"},
+      lcsc="C165948", block="USB", layout=USBC_LAYOUT),
+    # 5.1k pull-downs on CC1/CC2 so a USB-C host or charger turns VBUS on.
+    two("R20", "R", "5.1k", "R0603", "USB_CC1", "GND", lcsc="C23186", block="USB"),
+    two("R21", "R", "5.1k", "R0603", "USB_CC2", "GND", lcsc="C23186", block="USB"),
     P("U5", "box", "USBLC6-2SC6", "SOT236",
       {1: "USB_D_N", 6: "USB_D_N", 2: "GND", 3: "USB_D_P", 4: "USB_D_P", 5: "VBUS"},
       block="USB", layout=USBLC6_LAYOUT),
@@ -176,8 +189,10 @@ PARTS = [
     two("R14", "R", "10k", "R0603", "HEAT_PWM", "GND", block="Heater"),
     # ---------------- Fan ----------------
     two("F2", "R", "PTC 0.75A hold 30V", "F1812", "+24V", "FAN_P", block="Fan"),
-    P("J3", "box", "Fan (JST-SH 2 side)", "SH2H", {1: "FAN_P", 2: "FAN_N"},
-      block="Fan", layout=CONN2_LAYOUT),
+    # One latching 6-pin plug for fan, thermistor and a 2-wire switch sensor.
+    P("J3", "box", "Fan/therm/sensor (JST-GH 6)", "GH6H",
+      {1: "FAN_P", 2: "FAN_N", 3: "TH_SIG", 4: "GND", 5: "SENS", 6: "GND"},
+      block="Fan", layout=CONN6_LAYOUT),
     P("Q3", "box", "N-FET 60V <=30mR@2.5V", "PPAK1212",
       {1: "GND", 2: "GND", 3: "GND", 4: "FAN_G", 5: "FAN_N"},
       block="Fan", layout=FET_LAYOUT),
@@ -186,8 +201,6 @@ PARTS = [
     two("R16", "R", "10k", "R0603", "FAN_PWM", "GND", block="Fan"),
     two("C18", "C", "100nF 50V", "C0603", "FAN_P", "FAN_N", lcsc="C14663", dnp=True, block="Fan"),
     # ---------------- Thermistor ----------------
-    P("J4", "box", "Thermistor (JST-SH 2 top)", "SH2V", {1: "TH_SIG", 2: "GND"},
-      block="Thermistor", layout=CONN2_LAYOUT),
     two("R17", "R", "4.7k 0.1% 25ppm", "R0603", "VREFP", "TH_SIG", block="Thermistor"),
     two("R18", "R", "4.12k 0.1% 25ppm", "R0603", "VREFP", "JP2_A", block="Thermistor"),
     P("JP2", "box", "NTC/PT1000", "HDR2", {1: "JP2_A", 2: "TH_SIG"},
@@ -196,6 +209,10 @@ PARTS = [
     two("C19", "C", "100nF", "C0603", "TH_ADC", "GND", lcsc="C14663", block="Thermistor"),
     P("D6", "box", "BAT54S", "SOT23", {1: "GND", 2: "+3V3", 3: "TH_ADC"},
       block="Thermistor", layout=BAT54S_LAYOUT),
+    # ---------------- Switch sensor (endstop / runout, switch to GND) ----------------
+    two("R22", "R", "10k", "R0603", "+3V3", "SENS", block="Sensor"),
+    two("R23", "R", "1k", "R0603", "SENS", "SENS_IN", block="Sensor"),
+    two("C20", "C", "100nF", "C0603", "SENS_IN", "GND", lcsc="C14663", block="Sensor"),
 ]
 
 # Only LCSC numbers checked against JLCPCB's basic list are filled in;
@@ -204,4 +221,4 @@ for p in PARTS:
     if p["kind"] == "R" and p["fp"].endswith("R_0603_1608Metric") and not p["lcsc"]:
         p["lcsc"] = {"0R": "C21189"}.get(p["value"], "")
 
-BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Fan", "Thermistor"]
+BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Fan", "Thermistor", "Sensor"]
