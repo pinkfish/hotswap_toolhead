@@ -1,10 +1,11 @@
 """Generate KiCad 8 files for the toolhead controller from design.py.
 
 Outputs (in ./out):
-  toolhead.kicad_pro   minimal project file
+  toolhead.kicad_pro   minimal project file (only if missing)
   toolhead.kicad_sch   schematic: every pin tied to its net with a label
   toolhead.kicad_pcb   board outline, M3 holes, notes (footprints come in
-                       with Tools > Update PCB from Schematic)
+                       with Tools > Update PCB from Schematic); only written
+                       if missing, so the routed board is never overwritten
   toolhead.kicad_dru   custom design rules (current, clearance)
   place_footprints.py  run in the PCB editor's scripting console after
                        updating, to drop parts onto the floorplan
@@ -51,6 +52,8 @@ LAYOUT_NAMES = {
     id(design.USBLC6_LAYOUT): "USBLC6_2SC6",
     id(design.FET_LAYOUT): "MOSFET_8PIN",
     id(design.SOT3_LAYOUT): "SOT23_3",
+    id(design.SOT23FET_LAYOUT): "NMOS_SOT23",
+    id(design.XTAL4_LAYOUT): "XTAL_4PIN",
     id(design.BAT54S_LAYOUT): "BAT54S",
     id(design.XT30_LAYOUT): "XT30_2P2",
     id(design.CONN2_LAYOUT): "CONN_2",
@@ -246,10 +249,13 @@ def build_schematic():
 # PCB starter
 # ---------------------------------------------------------------------------
 OX, OY = 100.0, 100.0  # board origin on the PCB sheet
-BW, BH = 42.0, 24.0
+BW, BH = 31.0, 42.0
+HOLES = {"H1": (3.5, 20.5), "H2": (14.2, 37.5)}  # M3 insert positions
 
 LAYERS = """  (layers
     (0 "F.Cu" signal)
+    (1 "In1.Cu" power)
+    (2 "In2.Cu" power)
     (31 "B.Cu" signal)
     (32 "B.Adhes" user "B.Adhesive")
     (33 "F.Adhes" user "F.Adhesive")
@@ -287,8 +293,8 @@ def build_pcb():
     notes = [
         "1. Tools > Update PCB from Schematic (F8)",
         "2. Run place_footprints.py in the scripting console",
-        "3. GND pour on B.Cu; heater path pours >=3 mm on 1 oz",
-        "4. Q2 drain: >=150 mm2 copper both sides, 9+ vias",
+        "3. In1 = solid GND plane, In2 = solid +24V plane; GND pours on F/B",
+        "4. VIN_RAW/VIN_F pours on B.Cu; Q1 source and Q2 source via arrays",
     ]
     out = ["(kicad_pcb (version 20240108) (generator \"pcbnew\") (generator_version \"8.0\")",
            "  (general (thickness 1.6) (legacy_teardrops no))",
@@ -297,8 +303,7 @@ def build_pcb():
            LAYERS,
            "  (setup (pad_to_mask_clearance 0) (allow_soldermask_bridges_in_footprints no))",
            '  (net 0 "")',
-           mounting_hole("H1", OX + 3.5, OY + BH / 2),
-           mounting_hole("H2", OX + BW - 3.5, OY + BH / 2),
+           *(mounting_hole(ref, OX + x, OY + y) for ref, (x, y) in HOLES.items()),
            f"  (gr_rect (start {f(OX)} {f(OY)}) (end {f(OX + BW)} {f(OY + BH)}) (stroke (width 0.1) (type default))"
            f' (fill none) (layer "Edge.Cuts") (uuid {q(uid())}))']
     for i, n in enumerate(notes):
@@ -309,19 +314,34 @@ def build_pcb():
 
 
 # Floorplan (board-relative mm, origin top-left; rot in degrees; side F/B).
+# Taken from the routed board: connectors, buttons, LEDs, C1 and JP2 on top,
+# everything else on the bottom.
 FLOORPLAN = {
-    "J1": (5.0, 19.5, 90, "F"), "F1": (10.5, 21.5, 0, "F"), "D1": (10.5, 17.5, 0, "F"),
-    "Q1": (15.0, 20.5, 0, "F"), "C1": (10.0, 4.5, 0, "F"), "C2": (14.5, 16.0, 0, "F"),
-    "C3": (14.5, 13.5, 90, "F"),
-    "J2": (17.5, 2.5, 0, "F"), "Q2": (17.5, 7.5, 0, "F"), "R13": (20.5, 9.5, 0, "F"),
-    "J3": (25.0, 2.0, 0, "F"), "Q3": (25.0, 6.5, 0, "F"), "D5": (29.0, 6.0, 90, "F"),
-    "F2": (30.5, 2.5, 0, "F"), "R15": (22.5, 9.0, 0, "F"),
-    "U6": (24.0, 15.5, 0, "F"), "Y1": (17.0, 14.5, 90, "F"),
-    "U3": (10.0, 11.5, 0, "F"), "D4": (7.5, 16.0, 0, "F"),
-    "U1": (31.5, 20.0, 0, "F"), "L1": (35.5, 20.5, 0, "F"), "C8": (31.5, 17.0, 0, "F"),
-    "J5": (38.5, 4.5, 270, "F"), "U5": (35.5, 4.5, 0, "F"),
-    "SW1": (40.0, 18.0, 270, "F"), "SW2": (40.0, 21.5, 270, "F"),
-    "JP2": (31.0, 12.0, 0, "F"), "D6": (29.0, 16.0, 0, "F"),
+    "C1": (17.0, 15.5, 0, "F"), "C2": (3.2, 29.45, 90, "B"), "C3": (5.75, 29.45, 90, "B"),
+    "C4": (19.5, 13.0, 90, "B"), "C5": (19.5, 9.65, 0, "B"), "C6": (16.0, 17.3, 0, "B"),
+    "C8": (24.4, 18.7, 0, "B"), "C9": (16.4, 29.43, 270, "B"), "C10": (18.9, 32.85, 0, "B"),
+    "C11": (17.42, 29.48, 270, "B"), "C12": (18.44, 29.48, 270, "B"),
+    "C13": (16.4, 31.8, 270, "B"), "C14": (11.6, 31.4, 270, "B"), "C15": (11.0, 28.6, 270, "B"),
+    "C16": (6.75, 13.85, 90, "B"), "C17": (25.0, 3.0, 0, "B"), "C18": (20.4, 36.6, 90, "B"),
+    "C19": (24.0, 29.0, 0, "B"), "C20": (9.1, 29.6, 270, "B"), "D1": (17.9, 5.0, 90, "B"),
+    "D2": (3.45, 2.75, 0, "B"), "D3": (25.0, 10.8, 0, "B"), "D4": (9.45, 14.9, 0, "B"),
+    "D5": (29.4, 37.05, 90, "B"), "D6": (26.45, 26.25, 90, "B"), "D7": (5.0, 25.75, 0, "B"),
+    "D9": (19.65, 17.6, 0, "B"), "F1": (14.7, 4.6, 90, "B"), "F2": (24.5, 36.85, 0, "B"),
+    "FB1": (19.46, 29.48, 90, "B"), "J1": (8.4, 7.27, 180, "F"), "J2": (6.2, 33.4, 270, "F"),
+    "J3": (27.0, 30.9, 270, "F"), "J5": (25.0, 3.65, 180, "F"), "JP1": (9.25, 24.6, 90, "B"),
+    "JP2": (29.3, 24.4, 0, "F"), "L1": (24.4, 14.6, 0, "B"), "LED1": (24.0, 11.0, 0, "F"),
+    "LED2": (24.0, 13.0, 0, "F"), "Q1": (9.7, 3.9, 0, "B"), "Q2": (4.6, 37.0, 180, "B"),
+    "Q3": (24.0, 22.2, 0, "B"), "R1": (1.5, 6.0, 90, "B"), "R2": (12.7, 13.2, 0, "B"),
+    "R3": (12.7, 14.5, 0, "B"), "R4": (27.9, 21.6, 90, "B"), "R5": (28.15, 11.0, 90, "B"),
+    "R6": (27.9, 16.0, 90, "B"), "R7": (6.9, 11.7, 90, "B"), "R8": (9.4, 11.7, 90, "B"),
+    "R9": (8.15, 11.7, 90, "B"), "R10": (10.65, 11.7, 90, "B"), "R11": (9.55, 21.0, 90, "B"),
+    "R12": (6.75, 16.05, 90, "B"), "R13": (7.6, 36.8, 90, "B"), "R14": (9.0, 36.8, 90, "B"),
+    "R15": (21.85, 25.25, 90, "B"), "R16": (23.1, 25.25, 90, "B"), "R17": (29.6, 31.2, 90, "B"),
+    "R18": (29.6, 21.9, 90, "B"), "R19": (23.35, 27.3, 0, "B"), "R20": (27.9, 4.5, 90, "B"),
+    "R21": (22.1, 4.5, 90, "B"), "R22": (29.4, 29.4, 0, "B"), "R23": (9.7, 31.5, 0, "B"),
+    "SW1": (29.0, 13.4, 90, "F"), "SW2": (29.0, 19.0, 90, "F"), "U1": (16.0, 14.5, 0, "B"),
+    "U3": (3.3, 12.75, 90, "B"), "U5": (25.0, 7.2, 90, "B"), "U6": (16.3, 23.6, 90, "B"),
+    "Y1": (14.0, 30.4, 270, "B"),
 }
 
 
@@ -375,10 +395,10 @@ def build_place_script():
 
 DRU = """(version 1)
 (rule "High-current nets"
-  (condition "A.NetName == 'VIN_RAW' || A.NetName == 'VIN_F' || A.NetName == '+24V' || A.NetName == 'HEAT_N'")
+  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/VIN_F' || A.NetName == '/+24V' || A.NetName == '/HEAT_N'")
   (constraint track_width (min 0.8mm) (opt 3mm)))
 (rule "24 V clearance"
-  (condition "A.NetName == 'VIN_RAW' || A.NetName == 'VIN_F' || A.NetName == '+24V' || A.NetName == 'HEAT_N' || A.NetName == 'FAN_N' || A.NetName == 'FAN_P'")
+  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/VIN_F' || A.NetName == '/+24V' || A.NetName == '/HEAT_N' || A.NetName == '/FAN_N' || A.NetName == '/FAN_P'")
   (constraint clearance (min 0.3mm)))
 (rule "USB pair"
   (condition "A.inDiffPair('/USB_D')")
@@ -405,16 +425,20 @@ def main():
     sch, endpoints, placed = build_schematic()
     with open(os.path.join(OUT, "toolhead.kicad_sch"), "w") as fh:
         fh.write(sch)
-    with open(os.path.join(OUT, "toolhead.kicad_pcb"), "w") as fh:
-        fh.write(build_pcb())
+    # the PCB and project hold the routed board and its netclasses: starter only
+    pcb = os.path.join(OUT, "toolhead.kicad_pcb")
+    if not os.path.exists(pcb):
+        with open(pcb, "w") as fh:
+            fh.write(build_pcb())
     with open(os.path.join(OUT, "toolhead.kicad_dru"), "w") as fh:
         fh.write(DRU)
     with open(os.path.join(OUT, "place_footprints.py"), "w") as fh:
         fh.write(build_place_script())
     pro = {"meta": {"filename": "toolhead.kicad_pro", "version": 1},
            "sheets": [[ROOT_UUID, "Root"]]}
-    with open(os.path.join(OUT, "toolhead.kicad_pro"), "w") as fh:
-        json.dump(pro, fh, indent=2)
+    if not os.path.exists(os.path.join(OUT, "toolhead.kicad_pro")):
+        with open(os.path.join(OUT, "toolhead.kicad_pro"), "w") as fh:
+            json.dump(pro, fh, indent=2)
     lib_dir = os.path.join(OUT, "footprints", "hotswap_toolhead.pretty")
     os.makedirs(lib_dir, exist_ok=True)
     with open(os.path.join(OUT, "fp-lib-table"), "w") as fh:
