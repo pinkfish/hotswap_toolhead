@@ -37,7 +37,7 @@ BUCK_LAYOUT = (
 )
 CAN_LAYOUT = (
     [(1, "TXD"), (4, "RXD"), (8, "STB"), (5, "SHDN")],
-    [(3, "VDD"), (7, "CANH"), (6, "CANL"), (2, "GND")],
+    [(3, "VDD"), (7, "CANH"), (6, "CANL"), (2, "GND"), (9, "EP")],
 )
 USBLC6_LAYOUT = ([(1, "IO1"), (6, "IO1"), (2, "GND")], [(3, "IO2"), (4, "IO2"), (5, "VBUS")])
 FET_LAYOUT = ([(4, "G"), (1, "S"), (2, "S"), (3, "S")], [(5, "D")])
@@ -48,7 +48,9 @@ BAT54S_LAYOUT = ([(1, "A1"), (2, "K2")], [(3, "K1/A2")])
 XT30_LAYOUT = ([(1, "P+"), (2, "P-")], [(3, "S1"), (4, "S2")])
 CONN2_LAYOUT = ([(1, "1"), (2, "2")], [])
 CONN4_LAYOUT = ([(1, "1"), (2, "2"), (3, "3"), (4, "4")], [])
-CONN6_LAYOUT = ([(1, "FAN+"), (2, "FAN-"), (3, "THERM"), (4, "TGND"), (5, "SENS"), (6, "GND")], [])
+# 2x4 plug: each 2-wire load on one column (pins n and n+4 side by side).
+CONN8_LAYOUT = ([(1, "HEAT+"), (5, "HEAT-"), (2, "FAN+"), (6, "FAN-")],
+                [(3, "THERM"), (7, "TGND"), (4, "SENS"), (8, "GND")])
 # USB-C 16-pin receptacle (USB 2.0): both rows of D+/D- and VBUS/GND, CC per row.
 USBC_LAYOUT = (
     [("A4", "VBUS"), ("A9", "VBUS"), ("B4", "VBUS"), ("B9", "VBUS"), ("A5", "CC1"), ("B5", "CC2"),
@@ -76,19 +78,18 @@ FP = {
     "SOD123": "Diode_SMD:D_SOD-123",
     "SOT23": "Package_TO_SOT_SMD:SOT-23",
     "SOT236": "Package_TO_SOT_SMD:SOT-23-6",
-    "SOIC8": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+    "VSON8": "Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm",
     "QFN48": "Package_DFN_QFN:QFN-48-1EP_7x7mm_P0.5mm_EP5.6x5.6mm",  # ST UFQFPN48
-    "PPAK1212": "Package_SO:Vishay_PowerPAK_1212-8_Single",
+    "DFN3X3FET": "hotswap_toolhead:AOS_DFN-8-1EP_3x3mm_P0.65mm",
     "PPAKSO8": "Package_SO:PowerPAK_SO-8_Single",
     "XTAL3225": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm",
     "F1206": "Fuse:Fuse_1206_3216Metric",
     "F1812": "Fuse:Fuse_1812_4532Metric",
     "SW": "Button_Switch_SMD:SW_SPST_EVQP7C",  # side-push, 3.5 x 2.9 mm
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    "HDR2": "Connector_PinHeader_2.00mm:PinHeader_1x02_P2.00mm_Vertical",
-    "NANOFIT6": "Connector_Molex:Molex_Nano-Fit_105314-xx06_2x03_P2.50mm_Horizontal",
+    "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Left",
+    "NANOFIT8": "Connector_Molex:Molex_Nano-Fit_105314-xx08_2x04_P2.50mm_Horizontal",
     "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
-    "NANOFIT2": "Connector_Molex:Molex_Nano-Fit_105313-xx02_1x02_P2.50mm_Horizontal",
 }
 
 
@@ -108,7 +109,7 @@ PARTS = [
       {1: "VIN_RAW", 2: "GND", 3: "CAN_S1", 4: "CAN_S2"},
       lcsc="C19268030", block="Power input", layout=XT30_LAYOUT),
     two("F1", "R", "6A 1206 fuse (BSMD1206C-1600T)", "F1206", "VIN_RAW", "VIN_F", lcsc="C49328461", block="Power input"),
-    two("D1", "D", "SMAJ33CA", "SMA", "VIN_F", "GND", lcsc="C19077549", block="Power input"),
+    two("D1", "D", "SMF33CA", "SOD123F", "VIN_F", "GND", lcsc="C19077520", block="Power input"),
     P("Q1", "box", "SQJ461EP-T1_GE3", "PPAKSO8",
       {1: "+24V", 2: "+24V", 3: "+24V", 4: "Q1_G", 5: "VIN_F"},
       lcsc="C3279500", block="Power input", layout=FET_LAYOUT),
@@ -136,8 +137,8 @@ PARTS = [
     P("U6", "box", "STM32G0B1CBU6", "QFN48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
        10: "NRST", 13: "SENS_IN", 14: "TH_ADC", 19: "CAN_RX", 20: "CAN_TX",
-       25: "HEAT_PWM", 33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
-       44: "LED_STAT", 47: "FAN_PWM", 49: "GND"},
+       33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
+       44: "LED_STAT", 47: "FAN_PWM", 48: "HEAT_PWM", 49: "GND"},
       lcsc="C5270156", block="MCU", layout=STM32_LAYOUT),
     two("C9", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="MCU"),
     two("C10", "C", "10uF 25V X5R", "C0805", "+3V3", "GND", lcsc="C15850", block="MCU"),
@@ -149,8 +150,10 @@ PARTS = [
     two("C13", "C", "33pF C0G", "C0402", "OSC_IN", "GND", lcsc="C1562", block="MCU"),
     two("C14", "C", "33pF C0G", "C0402", "OSC_OUT", "GND", lcsc="C1562", block="MCU"),
     two("C15", "C", "100nF", "C0402", "NRST", "GND", lcsc="C1525", block="MCU"),
-    two("SW1", "R", "RESET", "SW", "NRST", "GND", lcsc="C528965", block="MCU"),
-    two("SW2", "R", "BOOT", "SW", "+3V3", "BOOT_SW", lcsc="C528965", block="MCU"),
+    two("SW1", "R", "RESET", "SW", "NRST", "GND", lcsc="C388883", block="MCU"),
+    # BOOT is rarely needed (blank chips enter DFU anyway, Katapult is entered by
+    # double-tapping RESET): two pads to short with tweezers instead of a button.
+    two("JP3", "R", "BOOT", "SJ", "+3V3", "BOOT_SW", block="MCU"),
     two("R4", "R", "1k", "R0402", "BOOT_SW", "SWCLK", block="MCU"),
     two("R5", "R", "1k", "R0402", "+3V3", "LED1_A", block="MCU"),
     two("LED1", "D", "yellow-green", "LED0603", "GND", "LED1_A", lcsc="C2289", block="MCU"),
@@ -165,9 +168,9 @@ PARTS = [
       lcsc="C14486", block="CAN", layout=SOT3_LAYOUT),
     two("R11", "R", "120R", "R0805", "CAN_H", "CAN_TERM", lcsc="C17437", block="CAN"),
     two("JP1", "R", "TERM", "SJ", "CAN_TERM", "CAN_L", block="CAN"),
-    P("U3", "box", "TCAN3414DR", "SOIC8",
-      {1: "CAN_TX", 2: "GND", 3: "+3V3", 4: "CAN_RX", 5: "CAN_P5", 6: "CAN_L", 7: "CAN_H", 8: "GND"},
-      lcsc="C22396693", block="CAN", layout=CAN_LAYOUT),
+    P("U3", "box", "TCAN3414DRBR", "VSON8",
+      {1: "CAN_TX", 2: "GND", 3: "+3V3", 4: "CAN_RX", 5: "CAN_P5", 6: "CAN_L", 7: "CAN_H", 8: "GND", 9: "GND"},
+      lcsc="C31542495", block="CAN", layout=CAN_LAYOUT),
     two("C16", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="CAN"),
     # TCAN3414 pin 5 is SHDN (high = off, internal pull-down): never fit R12.
     two("R12", "R", "0R", "R0402", "CAN_P5", "+3V3", dnp=True, block="CAN"),
@@ -185,20 +188,20 @@ PARTS = [
       lcsc="C7519", block="USB", layout=USBLC6_LAYOUT),
     two("C17", "C", "10uF 25V X5R", "C0805", "VBUS", "GND", lcsc="C15850", block="USB"),
     # ---------------- Heater ----------------
-    P("J2", "box", "Heater (Nano-Fit 2)", "NANOFIT2", {1: "+24V", 2: "HEAT_N"},
-      lcsc="C564339", block="Heater", layout=CONN2_LAYOUT),
-    P("Q2", "box", "N-FET 60V <=30mR@2.5V", "PPAK1212",
+    # One latching 2x4 right-angle plug for heater, fan, thermistor and a
+    # 2-wire switch sensor (7.5 A per contact).
+    P("J2", "box", "Heater/fan/therm/sensor (Nano-Fit 2x4)", "NANOFIT8",
+      {1: "+24V", 5: "HEAT_N", 2: "FAN_P", 6: "FAN_N", 3: "TH_SIG", 7: "GND", 4: "SENS", 8: "GND"},
+      lcsc="C841208", block="Heater", layout=CONN8_LAYOUT),
+    # 60 V, 13.3 mR max at 4.5 V; driven straight from the 3.3 V MCU pin, so
+    # check under 75 mV across it at 2.5 A on the bench.
+    P("Q2", "box", "AON7264E", "DFN3X3FET",
       {1: "GND", 2: "GND", 3: "GND", 4: "HEAT_G", 5: "HEAT_N"},
-      block="Heater", layout=FET_LAYOUT),
+      lcsc="C431191", block="Heater", layout=FET_LAYOUT),
     two("R13", "R", "10k", "R0402", "HEAT_PWM", "HEAT_G", block="Heater"),
     two("R14", "R", "10k", "R0402", "HEAT_PWM", "GND", block="Heater"),
     # ---------------- Fan ----------------
     two("F2", "R", "PTC 0.75A 33V (JK-mSMD075-33)", "F1812", "+24V", "FAN_P", lcsc="C369169", block="Fan"),
-    # One latching 2x3 right-angle plug for fan, thermistor and a 2-wire switch
-    # sensor; same Nano-Fit terminals as the heater plug.
-    P("J3", "box", "Fan/therm/sensor (Nano-Fit 2x3)", "NANOFIT6",
-      {1: "FAN_P", 2: "FAN_N", 3: "TH_SIG", 4: "GND", 5: "SENS", 6: "GND"},
-      lcsc="C586245", block="Fan", layout=CONN6_LAYOUT),
     P("Q3", "box", "WST6066A", "SOT23",
       {1: "FAN_G", 2: "GND", 3: "FAN_N"},
       lcsc="C148352", block="Fan", layout=SOT23FET_LAYOUT),
@@ -209,8 +212,9 @@ PARTS = [
     # ---------------- Thermistor ----------------
     two("R17", "R", "4.7k 0.1% 25ppm", "R0402", "VREFP", "TH_SIG", lcsc="C281778", block="Thermistor"),
     two("R18", "R", "4.12k 0.1% 25ppm", "R0402", "VREFP", "JP2_A", lcsc="C852812", block="Thermistor"),
+    # 1.27 mm SMD header; the 1.27 mm shunt (C150949) is fitted by hand.
     P("JP2", "box", "NTC/PT1000", "HDR2", {1: "JP2_A", 2: "TH_SIG"},
-      lcsc="C541856", block="Thermistor", layout=CONN2_LAYOUT),
+      lcsc="C41375972", block="Thermistor", layout=CONN2_LAYOUT),
     two("R19", "R", "1k", "R0402", "TH_SIG", "TH_ADC", block="Thermistor"),
     two("C19", "C", "100nF", "C0402", "TH_ADC", "GND", lcsc="C1525", block="Thermistor"),
     P("D6", "box", "BAT54S", "SOT23", {1: "GND", 2: "+3V3", 3: "TH_ADC"},

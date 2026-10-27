@@ -2,7 +2,7 @@
 
 A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan (≤0.5 A) and one thermistor input (100k NTC or PT1000), with USB-C for programming and debugging. Runs Klipper with the Katapult bootloader on an STM32G0B1.
 
-- **Board:** 31 × 42 mm, 4-layer (In1 GND plane, In2 +24V plane), two M3 heat-set-insert holes; connectors, buttons and LEDs on top, everything else on the bottom
+- **Board:** 31 × 35 mm, 4-layer (In1 GND plane, In2 +24V plane), two M3 heat-set-insert holes; connectors, the RESET button, LEDs and the heater FET on top, everything else on the bottom
 - **Input:** XT30(2+2) – 24 V power plus CAN on one connector
 - **Protection:** fuse, bidirectional TVS, reverse-polarity FET, ±58 V-tolerant CAN transceiver, fan PTC
 - **Programming:** USB alone powers the logic, no 24 V needed
