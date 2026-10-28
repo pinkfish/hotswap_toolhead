@@ -4,7 +4,7 @@ Oct 23, 2026
 
 ## Overview and assumptions
 
-A 31 × 35 mm, 4-layer board (connectors, buttons and LEDs on the top side, everything else on the bottom, like the FYSETC H36 and Mellow Tool-Lite) with two M3 heat-set-insert mounting holes that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (heater, fan, thermistor and switch share one 2×4 Nano-Fit plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
+A 31 × 33 mm, 4-layer board (connectors, buttons, LEDs and the bulkier passives on the top side, everything else on the bottom, like the FYSETC H36 and Mellow Tool-Lite) with two M3 heat-set-insert mounting holes that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (heater, fan, thermistor and switch share one 2×4 Nano-Fit plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
 
 Design targets, chosen where the request left them open:
 
@@ -195,14 +195,14 @@ These parts stay extended because no basic part meets the spec: the MCU (no basi
 
 ## PCB layout guidance
 
-Target a 31 × 35 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (connectors, the heater FET, GND pour), In1 solid GND, In2 solid +24V, bottom (the other ICs and passives, GND pour). Every SMD GND and +24V pad gets its own via to its plane; +3.3 V is routed as traces. The +24V plane carries the 3.6 A input current, which 1 oz traces of a routable width cannot.
+Target a 31 × 33 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (connectors, the FETs, the bulk capacitors, GND pour), In1 solid GND, In2 solid +24V, bottom (the other ICs and passives, GND pour). Every SMD GND and +24V pad gets its own via to its plane; +3.3 V is routed as traces. The +24V plane carries the 3.6 A input current, which 1 oz traces of a routable width cannot.
 
-**Floorplan (top view):** connectors, RESET, the BOOT and CAN-termination pads, LEDs, the bulk capacitor, JP2, and the heater FET Q2 with its gate resistors R13/R14 on the top side; everything else on the bottom.
+**Floorplan (top view):** connectors, RESET, the BOOT and CAN-termination pads, LEDs, the bulk capacitors (C1, the 24 V ceramics C2/C3 and the 3.3 V C8), JP2, the heater FET Q2 with its gate resistors R13/R14, the fan FET Q3, the TH_ADC clamp D6, the thermistor pull-ups R17/R18 and the switch-sensor parts R22, R23 and C20 on the top side; everything else on the bottom. Moving those up from the bottom let J2 and the parts round it come 2 mm closer to the top end.
 
-- **Mounting holes:** two M3 holes for 5 mm heat-set inserts, each with a 3 mm-radius keep-out on both sides: H1 on the left edge, 3.5 mm in and 16 mm down from the top; H2 in the bottom-right corner, 3.5 mm in from the right and bottom edges. They are about 28.6 mm apart.
+- **Mounting holes:** two M3 holes for 5 mm heat-set inserts, each with a 3 mm-radius keep-out on both sides: H1 on the left edge, 3.5 mm in and 16 mm down from the top; H2 in the bottom-right corner, 3.5 mm in from the right and bottom edges. They are about 27.5 mm apart.
 - **Top end:** J1 (XT30 2+2, right-angle, mouth up, front about 2.8 mm past the edge) and J5 (USB-C, shell flush). Q1, F1 and D1 sit underneath between J1's pins; U3 (CAN) behind J1's signal pins; U5 and the CC resistors between J5's shield pins.
 - **Right edge:** SW1 (RESET, side-push) with the BOOT pads (JP3) just below it.
-- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, in the bottom-left corner and pointing down. Q2 sits on top beside J2's heater pins, directly over the crystal; Q3, D5 and F2 are under J2.
+- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, in the bottom-left corner and pointing down. Q2 sits on top beside J2's heater pins, directly over the crystal, with Q3 below it; D5 and F2 are under J2. R22, R23 and C20 sit in a row on top between H1's keep-out and J2.
 - **Centre (bottom side):** U6 with its decoupling, VREF and crystal parts on the pin 4–10 side; the buck above and to the right of the MCU, away from the thermistor filter.
 - **Thermistor:** RC filter and clamp close to PA3, away from the heater traces; run TH_SIG from J2 away from FAN_N.
 
@@ -220,17 +220,17 @@ Target a 31 × 35 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (conn
 
 **Fab:** standard JLCPCB/PCBWay rules work (0.15 mm trace/space, 0.3 mm vias). Add test points for +24V, +3V3, GND, CAN_H, CAN_L and TH_SIG.
 
-**As routed (31 × 35 board), where it differs from the guidance above:**
+**As routed (31 × 33 board), where it differs from the guidance above:**
 
-- **Q2 drain:** 30 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the crystal and the MCU decoupling. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
+- **Q2 drain:** about 28 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the crystal and the MCU decoupling. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
 - **Q2 position:** on the top side directly over the crystal (Y1), not 5 mm from it; the board and the In1 GND plane sit between them.
-- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar and reach the GND plane through 3 vias plus the top GND pour, not 6+.
+- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar, connect solid to the top GND pour and reach the GND plane through 2 vias, not 6+ (the crystal and the 3.3 V decoupling fill the bottom side under them); check the source-side temperature along with Q2's at full heater power.
 - **Heater path:** the input runs J1 → F1 → Q1 through bottom-layer VIN_RAW/VIN_F pours, and the load current through the In2 +24V plane, rather than 3 mm traces.
 - **Buck switch node:** on the bottom layer, since all ICs are on the bottom.
 - **AGND:** not split; the thermistor filter returns to the solid In1 GND plane.
-- **USB and CAN pairs:** the USB pair reaches U6 in the opposite order to the connector, so it crosses once just below U5: D− drops to the bottom layer between D3's pads and comes back up between the LEDs (3 vias), while D+ stays on top around the LED column (2 vias). CAN_H and CAN_L use one and two vias.
-- **Thermistor ADC line:** TH_ADC runs from PA3 on the bottom layer down the lane between J2's heater pins and C15/C14, then under the crystal to R19/C19 (about 17 mm, 0.3 mm from the 24 V pads).
-- **Heater PWM on PB9 (pin 48):** the corner pin next to R13/R14, so HEAT_PWM is a 7 mm run. PB13, the earlier choice, was boxed in at the far corner.
+- **USB and CAN pairs:** the USB pair reaches U6 in the opposite order to the connector, so it crosses once just below U5: D− drops to the bottom layer between D3's pads and comes back up between the LEDs (3 vias), while D+ stays on top around the LED column (2 vias). CAN_H and CAN_L use one via each.
+- **Thermistor ADC line:** TH_ADC runs from PA3 on the bottom layer down the lane between J2's heater pins and C15/C14, then under the crystal to R19/C19 (about 13 mm, 0.3 mm from the 24 V pads), and on to the D6 clamp on top.
+- **Heater PWM on PB9 (pin 48):** the corner pin next to R13/R14, so HEAT_PWM is a 5 mm run. PB13, the earlier choice, was boxed in at the far corner.
 - **Test points:** none fitted.
 
 ## Thermal
@@ -301,6 +301,6 @@ Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID 
 - [x] Heater power settled: 60–72 W at 24 V
 - [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, fixed CAN order, pin 3 = CAN_H, pin 4 = CAN_L
 - [x] Analog supply settled: VREF+ is a separate pin (5), VDD/VDDA bonded on pin 6, so FB1 is fitted
-- [x] Mounting settled: two M3 holes, left edge and bottom-right corner, about 28.6 mm apart; fan settled at 0.5 A or less
+- [x] Mounting settled: two M3 holes, left edge and bottom-right corner, about 27.5 mm apart; fan settled at 0.5 A or less
 - [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the buck needs 4 V minimum)
 - [ ] Prototype check: measure Q2's case temperature with a thermocouple during a long print in the enclosed printer; it should stay under about 110 °C

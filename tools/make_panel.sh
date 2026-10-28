@@ -17,6 +17,14 @@ $PY tools/panel_tabs.py hardware/toolhead.kicad_pcb $P/src.kicad_pcb 2>/dev/null
 $PY -m kikit.ui panelize -p tools/panel.json $P/src.kicad_pcb $P/toolhead_panel.kicad_pcb 2>&1 | grep -v 'Debug: Adding' || true
 rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru
 cp hardware/toolhead.kicad_dru $P/toolhead_panel.kicad_dru
+# H2's ring is exactly 0.5 mm from the board corner; KiKit's rebuilt outline puts that corner
+# 0.0006 mm closer, so the panel allows 0.49 mm there
+cat >> $P/toolhead_panel.kicad_dru <<'DRU'
+
+(rule "H2 ring at the panel's board corners"
+  (condition "A.memberOfFootprint('H2_*')")
+  (constraint edge_clearance (min 0.49mm)))
+DRU
 rm -rf $G && mkdir -p $G
 $K pcb export gerbers -o $G/ --layers F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts --subtract-soldermask $P/toolhead_panel.kicad_pcb >/dev/null
 $K pcb export drill -o $G/ --format excellon --excellon-separate-th --drill-origin absolute --excellon-units mm $P/toolhead_panel.kicad_pcb >/dev/null
