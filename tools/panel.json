@@ -1,0 +1,10 @@
+{
+  "layout": {"type": "grid", "rows": 3, "cols": 3, "hspace": "2mm", "vspace": "6mm", "renameref": "{orig}_{n}"},
+  "tabs": {"type": "annotation"},
+  "cuts": {"type": "mousebites", "drill": "0.5mm", "spacing": "0.8mm", "offset": "0.2mm", "prolong": "0mm"},
+  "framing": {"type": "frame", "width": "5mm", "hspace": "2mm", "vspace": "4mm", "cuts": "none"},
+  "tooling": {"type": "4hole", "hoffset": "2.5mm", "voffset": "2.5mm", "size": "1.152mm", "soldermaskmargin": "1.3mm"},
+  "fiducials": {"type": "3fid", "hoffset": "8mm", "voffset": "2.5mm", "coppersize": "1mm", "opening": "2mm"},
+  "text": {"type": "simple", "text": "hotswap_toolhead 3x3  JLCJLCJLCJLC", "anchor": "mb", "voffset": "-2.5mm", "width": "1.5mm", "height": "1.5mm", "layer": "F.SilkS"},
+  "post": {"millradius": "1mm", "refillzones": true, "origin": "bl"}
+}

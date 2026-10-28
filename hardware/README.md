@@ -7,12 +7,12 @@ The schematic is generated from `tools/design.py` (the netlist) by `tools/gen_ki
 | File | Contents |
 | --- | --- |
 | `toolhead.kicad_pro` | Project file – open this in KiCad |
-| `toolhead.kicad_sch` | Full schematic: 71 parts, 44 nets, grouped by function. Every pin is tied to its net with a net label, so there are no wires to trace. |
+| `toolhead.kicad_sch` | Full schematic: 65 parts, 41 nets, grouped by function. Every pin is tied to its net with a net label, so there are no wires to trace. |
 | `toolhead.kicad_pcb` | Routed board: 31 × 35 mm, 4 layers, two M3 insert holes. The generator writes a starter here only if the file is missing |
 | `toolhead.kicad_pro` | Project file with the netclasses used for routing: Power 0.8 mm / 0.3 mm, Fan 0.4 / 0.3, Supply and USB 0.3 / 0.2 |
 | `toolhead.kicad_dru` | Custom design rules: high-current track widths, 24 V clearance, USB pair |
 | `place_footprints.py` | Puts every footprint where it sits on the routed board (only needed when rebuilding a board from scratch) |
-| `bom_jlcpcb.csv` | BOM in JLCPCB's upload format; DNP parts and the solder-jumper pads (JP1, JP3) excluded |
+| `bom_jlcpcb.csv` | BOM in JLCPCB's upload format; the solder-jumper pads (JP1, JP3) excluded; every other part is placed |
 | `fp-lib-table`, `footprints/` | Project footprint library: the XT30(2+2) connector (J1) and the AON7264E DFN 3×3 (Q2, land pattern from the LCSC/EasyEDA footprint for C431191) |
 | `../tools/` | Generator source: edit `tools/design.py`, then run `python3 tools/gen_kicad.py` and `python3 tools/verify.py` |
 
@@ -32,22 +32,22 @@ Most bottom-side reference designators are on B.Fab rather than the silkscreen (
 ## Before ordering
 
 - **U1 (TI LMR16006XDDC, 60 V buck):** footprint `Package_TO_SOT_SMD:SOT-23-6`, pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. It is non-synchronous, so D9 (DSK110) is its catch diode from SW to GND. L1 = 22 µH (FNR4030S220MT); R2 = 33 kΩ over R3 = 10 kΩ gives 3.29 V (V_FB = 0.765 V).
-- **J1 (XT30PW(2+2)-M.G.B, LCSC C19268030):** footprint is in `footprints/hotswap_toolhead.pretty/XT30PW-2+2-M.kicad_mod`. Check its pad numbers against the datasheet before ordering: 1 = power +, 2 = power −, 3 = signal S1, 4 = signal S2, so +24V doesn't end up on the wrong pin.
+- **J1 (XT30PW(2+2)-M.G.B, LCSC C19268030):** footprint is in `footprints/hotswap_toolhead.pretty/XT30PW-2+2-M.kicad_mod`. Check its pad numbers against the datasheet before ordering: 1 = power +, 2 = power −, 3 = CAN_H, 4 = CAN_L (marked H/L on the silkscreen), so +24V doesn't end up on the wrong pin.
 
 ## Check against datasheets
 
 - **Q1 PowerPAK and Q2 DFN footprints:** KiCad's PowerPAK SO-8 `_Single` footprint (Q1) and the project's AOS DFN 3×3 footprint (Q2) both have 5 pads (1–3 source, 4 gate, 5 drain tab), and the symbols match that. Q3 is a SOT-23 (1 G, 2 S, 3 D).
 
 - **U6 STM32G0B1 pinout:** from the G0 LQFP-48 pinout (VREF+ pin 5, VDD/VDDA 6, VSS/VSSA 7, PB0/PB1 19/20, PA11/12 33/34, PB9 48). Confirm against ST DS13560.
-- **U3 CAN transceiver (TCAN3414DRBR, VSON-8):** pin 5 is SHDN (high = shutdown, internal pull-down) and is left open. R12 (DNP) would tie it to +3V3 and switch the transceiver off, so never fit it. A TCAN3413 (pin 5 = VIO) would need R12 fitted.
+- **U3 CAN transceiver (TCAN3414DRBR, VSON-8):** pin 5 is SHDN (high = shutdown, internal pull-down) and is left open, so the transceiver is always on.
 - **Crystal Y1:** 20 pF load with 33 pF caps – check oscillator gain margin (ST AN2867) on the first board.
 
 ## Net names
 
-`+24V` load rail, `VIN_RAW`/`VIN_F` before and after the fuse, `VIN_LOGIC` buck input (24 V or USB), `+3V3`, `VREFP` (ferrite-filtered ADC reference and thermistor pull-up), `CAN_H`/`CAN_L` after the swap block, `HEAT_N`/`FAN_N` FET drains, `TH_SIG` thermistor, `TH_ADC` filtered ADC input.
+`+24V` load rail, `VIN_RAW`/`VIN_F` before and after the fuse, `VIN_LOGIC` buck input (24 V or USB), `+3V3`, `VREFP` (ferrite-filtered ADC reference and thermistor pull-up), `CAN_H`/`CAN_L` straight from J1 pins 3/4, `HEAT_N`/`FAN_N` FET drains, `TH_SIG` thermistor, `TH_ADC` filtered ADC input.
 
 ## JLCPCB BOM
 
 `bom_jlcpcb.csv` fills in only LCSC numbers that were checked against JLCPCB's basic parts list. Choose LCSC numbers for the rest in JLCPCB's part search when ordering.
 
-`../gerber/` holds the fab set exported from the routed board with `kicad-cli`: 4-layer gerbers with Protel extensions, separate PTH/NPTH Excellon drills, a job file, `toolhead-bom-jlcpcb.csv` and `toolhead-cpl-jlcpcb.csv`. The CPL marks 58 of the 68 placements as `Bottom`. JLCPCB's bottom-side rotations often need a correction in their placement preview, so check every rotated part there before confirming. `production/` is older output from the Fabrication Toolkit plugin, made before routing; regenerate it from KiCad if you use that plugin.
+`../gerber/` holds the fab set exported from the routed board with `kicad-cli`: 4-layer gerbers with Protel extensions, separate PTH/NPTH Excellon drills, a job file, `toolhead-bom-jlcpcb.csv` and `toolhead-cpl-jlcpcb.csv`. The CPL marks 51 of the 63 placements as `Bottom`. JLCPCB's bottom-side rotations often need a correction in their placement preview, so check every rotated part there before confirming. `../gerber/panel/` is the same set for a 3 × 3 panel (111 × 135 mm), built by `tools/make_panel.sh` with KiKit into `panel/toolhead_panel.kicad_pcb`: 5 mm frame rails with four 1.152 mm tooling holes and three fiducials, 2 mm gaps between columns and 6 mm between rows (J1 overhangs the top edge by 2.8 mm and J2 the bottom by 2.3 mm, so the boards can't butt together for V-cuts), and mouse-bite tabs only where both neighbours are clear: one 1.6 mm tab top and bottom at x 16.95, one 2 mm tab each side at y 21.3. Designators are suffixed per board (`R1_0` ... `R1_8`), 567 placements; upload `toolhead_panel-gerbers.zip`, the panel BOM and the panel CPL together, and order it as a customer panel. `production/` is older Fabrication Toolkit output; it includes DNP parts in its BOM unless Exclude DNP is ticked, which JLCPCB rejects.

@@ -44,11 +44,10 @@ LEDs: yellow-green on 3.3 V (power good, 1 kΩ, about 1.2 mA) and blue status on
 
 A 3.3 V CAN transceiver with ±58 V bus fault protection connects the MCU's FDCAN2 peripheral to the bus.
 
-- **Transceiver (U3):** TI TCAN3414DRBR (VSON-8, 3 × 3 mm, exposed pad to GND; 3.0–3.6 V supply) with 100 nF. The SO-8 version (TCAN3414DR) has the same pinout. Its ±58 V bus fault protection on CAN_H/CAN_L means a 24 V short from the neighbouring XT30 power pins doesn't destroy it. STB (pin 8) is tied straight to GND for normal mode. Pin 5 is SHDN (high = shutdown, internal pull-down), so it is left open and R12 must never be fitted. The MAX33012E considered earlier needs a 4.5–5.5 V supply, which this board doesn't have. Avoid the SN65HVD230 and TCAN330, whose bus pins only tolerate about ±12–16 V.
+- **Transceiver (U3):** TI TCAN3414DRBR (VSON-8, 3 × 3 mm, exposed pad to GND; 3.0–3.6 V supply) with 100 nF. The SO-8 version (TCAN3414DR) has the same pinout. Its ±58 V bus fault protection on CAN_H/CAN_L means a 24 V short from the neighbouring XT30 power pins doesn't destroy it. STB (pin 8) is tied straight to GND for normal mode. Pin 5 is SHDN (high = shutdown, internal pull-down), so it is left open. The MAX33012E considered earlier needs a 4.5–5.5 V supply, which this board doesn't have. Avoid the SN65HVD230 and TCAN330, whose bus pins only tolerate about ±12–16 V.
 - **MCU pins:** TXD → PB1 (FDCAN2_TX), RXD → PB0 (FDCAN2_RX). This matches the Klipper/Katapult option "CAN bus (on PB0/PB1)".
 - **Termination (R_T, JP1):** 120 Ω, 0805, in series with a solder jumper across CAN_H/CAN_L. Bridge it only on the board at the end of the bus.
 - **ESD (D4):** NUP2105L or PESD2CAN (SOT-23) on CAN_H/CAN_L to GND, placed at the connector.
-- **Optional common-mode choke (L2):** 51 µH CAN choke (e.g. ACT45B-510-2P) with 0 Ω bypass footprints. Leave it bypassed unless EMC testing calls for it.
 - **Routing:** CAN_H/CAN_L as a tightly coupled pair, 120 Ω differential where practical, no stubs longer than ~10 mm between connector, ESD, termination and transceiver.
 
 Crystal: an 8 MHz HSE crystal (±20 ppm or better) on PF0/PF1 is required for reliable 1 Mbit/s CAN timing; the internal oscillator is not accurate enough.
@@ -136,16 +135,16 @@ Power and CAN come in on one Amass XT30(2+2) hybrid connector: two heavy power c
 | JP2 | PT1000 pull-up | 2-pin 1.27 mm SMD header + shunt | — | — | — | — |
 | JP3 | BOOT | Two pads, short with tweezers | — | — | — | — |
 
-The XT30 housing keys the power polarity, but which small pin carries CAN_H and which carries CAN_L varies between BTT and Voron-style boards and even between revisions, so there's no single cable to copy. Instead, the two signal pins pass through a CAN swap block of four 0402 0 Ω footprints: fit the straight pair by default (S1 = CAN_H, S2 = CAN_L), or the crossed pair if your cable is wired the other way. A reversed pair doesn't damage anything; the board just won't appear on the bus until it's swapped. Check your cable against the controller-end silkscreen before the first power-up. Keep the fan at 0.5 A or less (F2 trips above that). Nano-Fit housings are rated to +105 °C, but USB-C and other plastics are typically rated to about +85 °C including contact heating, so mount the board where the chamber air stays below that, away from the heater block's radiant heat.
+The XT30 housing keys the power polarity, but which small pin carries CAN_H and which carries CAN_L varies between BTT and Voron-style boards and even between revisions, so there's no single cable to copy. This board fixes one order: pin 3 = CAN_H, pin 4 = CAN_L, marked H and L on the top silkscreen beside J1, with no swap option. A cable wired the other way doesn't damage anything; the board just won't appear on the bus until the two signal wires are swapped at one end of the cable. Check your cable against the controller-end silkscreen before the first power-up. Keep the fan at 0.5 A or less (F2 trips above that). Nano-Fit housings are rated to +105 °C, but USB-C and other plastics are typically rated to about +85 °C including contact heating, so mount the board where the chamber air stays below that, away from the heater block's radiant heat.
 
 ## Bill of materials
 
-About 65 placements and 7 resistor values. Part numbers are suggestions: check stock, footprints and current datasheets before ordering. The machine-readable BOM is `hardware/bom_jlcpcb.csv`.
+63 placements and 7 resistor values. Part numbers are suggestions: check stock, footprints and current datasheets before ordering. The machine-readable BOM is `hardware/bom_jlcpcb.csv`.
 
 | Ref | Part | Package | Qty | Notes |
 | --- | --- | --- | --- | --- |
 | U1 | TI LMR16006XDDC 60 V buck, set to 3.3 V (C87080) | SOT-23-6 | 1 | 4–60 V in; D9 catch diode |
-| U3 | TI TCAN3414DRBR 3.3 V CAN FD transceiver, ±58 V bus fault (C31542495) | VSON-8 3 × 3 | 1 | Pin 5 SHDN left open; R12 never fitted; exposed pad to GND |
+| U3 | TI TCAN3414DRBR 3.3 V CAN FD transceiver, ±58 V bus fault (C31542495) | VSON-8 3 × 3 | 1 | Pin 5 SHDN left open (internal pull-down); exposed pad to GND |
 | U5 | ST USBLC6-2SC6 USB ESD (C7519) | SOT-23-6 | 1 | |
 | U6 | STM32G0B1CBU6 MCU (C5270156; UFQFPN-48 is 85 °C, no 105 °C grade stocked) | UFQFPN-48 7 × 7 | 1 | JLCPCB had only 18 in stock in October 2026 |
 | Q1 | Vishay SQJ461EP-T1_GE3 60 V P-MOSFET (C3279500) | PowerPAK SO-8 | 1 | Reverse polarity |
@@ -162,7 +161,6 @@ About 65 placements and 7 resistor values. Part numbers are suggestions: check s
 | LED1, LED2 | KT-0603YG yellow-green (C2289), KT-0603B blue (C2288) | 0603 | 2 | 3V3 power, status |
 | FB1 | Murata BLM15AG601SN1D, 600 Ω @ 100 MHz (C76884) | 0402 | 1 | Feeds VREF+ (pin 5) and the thermistor pull-up |
 | SW1 | Panasonic EVQ-P7C01P side-push switch (C388883) | 3.5 × 2.9 mm SMD | 1 | RESET |
-| R | 0 Ω | 0402 | 2 | CAN swap (2 of 4 footprints fitted) |
 | R | 120 Ω | 0805 | 1 | CAN termination |
 | R | 1 kΩ | 0402 | 4 | Fan gate series, sensor filter, BOOT, power LED |
 | R | 100 Ω (C25076) | 0402 | 1 | Status LED |
@@ -172,7 +170,7 @@ About 65 placements and 7 resistor values. Part numbers are suggestions: check s
 | R | 33 kΩ 1% (C25779) | 0402 | 1 | Buck FB top (R2) |
 | C | 47 µF 50 V aluminium electrolytic, 105 °C, Lelon RVT1H470M0607 (C72523) | 6.3 × 7.7 mm SMD | 1 | 24 V bulk; not polymer |
 | C | 10 µF 50 V X5R (JLCPCB basic C13585) | 1206 | 2 | 24 V ceramic |
-| C | 22 µF 25 V X5R 1206, 10 µF 25 V X5R 0805, 1 µF 10 V X5R 0402, 100 nF 16 V X7R 0402 (50 V 0603 for C5, C18), 33 pF C0G 0402 | 0402–1206 | ~13 | JLCPCB basic: C12891, C15850, C52923, C1525, C14663 |
+| C | 22 µF 25 V X5R 1206, 10 µF 25 V X5R 0805, 1 µF 10 V X5R 0402, 100 nF 16 V X7R 0402 (50 V 0603 for C5), 33 pF C0G 0402 | 0402–1206 | ~13 | JLCPCB basic: C12891, C15850, C52923, C1525, C14663 |
 | J1 | Amass XT30PW(2+2)-M.G.B | Through-hole, right-angle | 1 | 24 V + CAN; LCSC C19268030; footprint from SnapEDA in the project library |
 | J2 | Molex Nano-Fit 105314-1108, 2×4 right-angle (C841208) | Through-hole | 1 | Heater, fan, thermistor, switch sensor |
 | J5 | USB-C 16-pin, HRO TYPE-C-31-M-12 (C165948) | 0.5 mm | 1 | USB |
@@ -185,7 +183,7 @@ About 65 placements and 7 resistor values. Part numbers are suggestions: check s
 
 | Function | JLCPCB basic part | LCSC # |
 | --- | --- | --- |
-| 100 nF decoupling | 16 V X7R 0402 (C1525); the two 50 V spots (C5, C18) stay 0603 (C14663) |
+| 100 nF decoupling | 16 V X7R 0402 (C1525); the 50 V spot (C5) stays 0603 (C14663) |
 | CAN termination | Uni-Royal 120 Ω 1% 0805 | C17437 |
 | 8 MHz crystal | YXC X322508MSB4SI, 3225, 20 pF load | C9002 |
 | 33 pF load caps | 50 V C0G 0402 | C1562 |
@@ -301,7 +299,7 @@ Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID 
 
 - [x] Sensor type settled: 100k NTC or PT1000, selected by JP2
 - [x] Heater power settled: 60–72 W at 24 V
-- [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, CAN order set by the swap footprints
+- [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, fixed CAN order, pin 3 = CAN_H, pin 4 = CAN_L
 - [x] Analog supply settled: VREF+ is a separate pin (5), VDD/VDDA bonded on pin 6, so FB1 is fitted
 - [x] Mounting settled: two M3 holes, left edge and bottom-right corner, about 28.6 mm apart; fan settled at 0.5 A or less
 - [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the buck needs 4 V minimum)

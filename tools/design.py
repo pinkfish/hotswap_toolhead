@@ -106,7 +106,7 @@ def two(ref, kind, value, fp, n1, n2, **kw):
 PARTS = [
     # ---------------- Power input ----------------
     P("J1", "box", "XT30PW(2+2)-M.G.B", "hotswap_toolhead:XT30PW-2+2-M",
-      {1: "VIN_RAW", 2: "GND", 3: "CAN_S1", 4: "CAN_S2"},
+      {1: "VIN_RAW", 2: "GND", 3: "CAN_H", 4: "CAN_L"},
       lcsc="C19268030", block="Power input", layout=XT30_LAYOUT),
     two("F1", "R", "6A 1206 fuse (BSMD1206C-1600T)", "F1206", "VIN_RAW", "VIN_F", lcsc="C49328461", block="Power input"),
     two("D1", "D", "SMF33CA", "SOD123F", "VIN_F", "GND", lcsc="C19077520", block="Power input"),
@@ -160,20 +160,16 @@ PARTS = [
     two("R6", "R", "100R", "R0402", "LED_STAT", "LED2_A", lcsc="C25076", block="MCU"),
     two("LED2", "D", "blue", "LED0603", "GND", "LED2_A", lcsc="C2288", block="MCU"),
     # ---------------- CAN ----------------
-    two("R7", "R", "0R", "R0402", "CAN_S1", "CAN_H", block="CAN"),
-    two("R8", "R", "0R", "R0402", "CAN_S2", "CAN_L", block="CAN"),
-    two("R9", "R", "0R", "R0402", "CAN_S1", "CAN_L", dnp=True, block="CAN"),
-    two("R10", "R", "0R", "R0402", "CAN_S2", "CAN_H", dnp=True, block="CAN"),
+    # J1 pin 3 = CAN_H, pin 4 = CAN_L, wired straight through (no swap option).
+    # TCAN3414 pin 5 is SHDN (high = off, internal pull-down): left open.
     P("D4", "box", "NUP2105L", "SOT23", {1: "CAN_H", 2: "CAN_L", 3: "GND"},
       lcsc="C14486", block="CAN", layout=SOT3_LAYOUT),
     two("R11", "R", "120R", "R0805", "CAN_H", "CAN_TERM", lcsc="C17437", block="CAN"),
     two("JP1", "R", "TERM", "SJ", "CAN_TERM", "CAN_L", block="CAN"),
     P("U3", "box", "TCAN3414DRBR", "VSON8",
-      {1: "CAN_TX", 2: "GND", 3: "+3V3", 4: "CAN_RX", 5: "CAN_P5", 6: "CAN_L", 7: "CAN_H", 8: "GND", 9: "GND"},
+      {1: "CAN_TX", 2: "GND", 3: "+3V3", 4: "CAN_RX", 6: "CAN_L", 7: "CAN_H", 8: "GND", 9: "GND"},
       lcsc="C31542495", block="CAN", layout=CAN_LAYOUT),
     two("C16", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="CAN"),
-    # TCAN3414 pin 5 is SHDN (high = off, internal pull-down): never fit R12.
-    two("R12", "R", "0R", "R0402", "CAN_P5", "+3V3", dnp=True, block="CAN"),
     # ---------------- USB ----------------
     P("J5", "box", "USB-C (HRO TYPE-C-31-M-12)", "USBC16",
       {"A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS", "A5": "USB_CC1", "B5": "USB_CC2",
@@ -208,7 +204,6 @@ PARTS = [
     two("D5", "D", "DSK110 100V 1A", "SOD123F", "FAN_P", "FAN_N", lcsc="C22466354", block="Fan"),
     two("R15", "R", "1k", "R0402", "FAN_PWM", "FAN_G", block="Fan"),
     two("R16", "R", "10k", "R0402", "FAN_PWM", "GND", block="Fan"),
-    two("C18", "C", "100nF 50V", "C0603", "FAN_P", "FAN_N", lcsc="C14663", dnp=True, block="Fan"),
     # ---------------- Thermistor ----------------
     two("R17", "R", "4.7k 0.1% 25ppm", "R0402", "VREFP", "TH_SIG", lcsc="C281778", block="Thermistor"),
     two("R18", "R", "4.12k 0.1% 25ppm", "R0402", "VREFP", "JP2_A", lcsc="C852812", block="Thermistor"),

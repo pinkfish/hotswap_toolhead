@@ -13,7 +13,7 @@ A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan
 | --- | --- |
 | `docs/` | Design spec (`design_spec.md`) and schematic overview |
 | `hardware/` | KiCad project: schematic, routed PCB, design rules, placement script, JLCPCB BOM |
-| `gerber/` | Fab outputs from the routed PCB: 4-layer gerbers, drill files, JLCPCB BOM and CPL |
+| `gerber/` | Fab outputs from the routed PCB: 4-layer gerbers, drill files, JLCPCB BOM and CPL; `gerber/panel/` is the 3 × 3 panel (`tools/make_panel.sh`) |
 | `tools/` | Python source for the KiCad files: `design.py` is the netlist, `gen_kicad.py` builds the files, `verify.py` checks connectivity |
 
 ## Status
