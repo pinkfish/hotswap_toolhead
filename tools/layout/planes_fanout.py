@@ -1,0 +1,178 @@
+"""Add the inner planes (In1 = GND, In2 = +24V, whole board) and fan out every
+SMD pad on those nets to a via, so the autorouter never has to route them.
+    planes_fanout.py board.kicad_pcb
+Fanout tracks and vias are locked so Freerouting keeps them.
+"""
+import math
+import sys
+
+import pcbnew
+
+mm, tomm = pcbnew.FromMM, pcbnew.ToMM
+b = pcbnew.LoadBoard(sys.argv[1])
+e = b.GetBoardEdgesBoundingBox()
+import os
+PLANES = {'/GND': pcbnew.In1_Cu}
+if os.environ.get('V24_PLANE'):
+    PLANES['/+24V'] = pcbnew.In2_Cu
+else:
+    b.SetLayerType(pcbnew.In2_Cu, pcbnew.LT_SIGNAL)   # In2 routed
+# per-net fanout track width and via (diameter, drill)
+FAN = {'/GND': (0.3, 0.6, 0.3), '/+24V': (0.8, 0.8, 0.4)}
+VIA_D, VIA_DRILL, CLR, TRACK = 0.6, 0.3, 0.2, 0.3
+EDGE = 0.55 + VIA_D / 2   # edge bbox includes half the 0.1 mm outline
+HV = {'/VIN_RAW', '/VIN_F', '/+24V', '/HEAT_N', '/FAN_N', '/FAN_P'}
+HV_CLR = 0.32
+
+ONLY = set(filter(None, os.environ.get('ONLY', '').split(',')))
+for net, layer in ([] if ONLY else PLANES.items()):
+    z = pcbnew.ZONE(b)
+    z.SetLayer(layer)
+    z.SetNet(b.FindNet(net))
+    z.SetLocalClearance(mm(0.3))
+    z.SetMinThickness(mm(0.25))
+    z.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
+    z.SetThermalReliefGap(mm(0.3))
+    z.SetThermalReliefSpokeWidth(mm(0.4))
+    z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
+    o = z.Outline()
+    o.NewOutline()
+    for x, y in ((e.GetLeft(), e.GetTop()), (e.GetRight(), e.GetTop()),
+                 (e.GetRight(), e.GetBottom()), (e.GetLeft(), e.GetBottom())):
+        o.Append(x, y)
+    b.Add(z)
+
+# keep-outs: rule areas around the mounting holes
+keepouts = [z for z in b.Zones() if z.GetIsRuleArea() and z.GetDoNotAllowVias()]
+pads = [p for f in b.GetFootprints() for p in f.Pads()]
+vias = []      # (x, y) in IU of vias placed so far
+tracks = []    # (layer, seg shape, net)
+# existing copper (escape stubs, pre-placed vias, routes) is an obstacle too
+if True:
+    for t in b.GetTracks():
+        if t.GetClass() == 'PCB_VIA':
+            vias.append((t.GetPosition().x, t.GetPosition().y))
+        else:
+            tracks.append((t.GetLayer(), pcbnew.SEG(t.GetStart(), t.GetEnd()), t.GetNetname(), tomm(t.GetWidth())))
+
+
+def legal_via(pos, net):
+    if not (e.GetLeft() + mm(EDGE) < pos.x < e.GetRight() - mm(EDGE) and
+            e.GetTop() + mm(EDGE) < pos.y < e.GetBottom() - mm(EDGE)):
+        return False
+    for k in keepouts:
+        if k.Outline().Collide(pos, mm(VIA_D / 2)):
+            return False
+    for p in pads:
+        drilled = p.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH, pcbnew.PAD_ATTRIB_NPTH)
+        if p.GetNetname() == net and not drilled:
+            # same net: fine to touch copper, but not to sit on the pad itself
+            pl = pcbnew.F_Cu if p.IsOnLayer(pcbnew.F_Cu) else pcbnew.B_Cu
+            if p.GetEffectiveShape(pl).Collide(pos, mm(VIA_D / 2 - 0.05)):
+                return False
+            continue
+        clr = HV_CLR if p.GetNetname() in HV else CLR
+        for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+            if p.IsOnLayer(layer) and p.GetEffectiveShape(layer).Collide(pos, mm(VIA_D / 2 + clr)):
+                return False
+        if drilled:
+            d = p.GetDrillSize()
+            r = max(d.x, d.y) / 2
+            if math.hypot(pos.x - p.GetPosition().x, pos.y - p.GetPosition().y) < r + mm(VIA_D / 2 + 0.3):
+                return False
+    for vx, vy in vias:
+        if math.hypot(pos.x - vx, pos.y - vy) < mm(VIA_D + CLR):
+            return False
+    for layer, seg, tnet, *tw in tracks:
+        if tnet != net and seg.Distance(pos) < mm(VIA_D / 2 + CLR + (tw[0] if tw else TRACK) / 2):
+            return False
+    return True
+
+
+def legal_track(layer, a, c, net, own_pad):
+    seg = pcbnew.SEG(a, c)
+    for k in keepouts:
+        if k.Outline().Collide(seg, mm(TRACK / 2)):
+            return False
+    for p in pads:
+        if p is own_pad or p.GetNetname() == net or not p.IsOnLayer(layer):
+            continue
+        clr = HV_CLR if p.GetNetname() in HV else CLR
+        if p.GetEffectiveShape(layer).Collide(seg, mm(clr + TRACK / 2)):
+            return False
+    for vx, vy in vias:
+        if seg.Distance(pcbnew.VECTOR2I(int(vx), int(vy))) < mm(VIA_D / 2 + CLR + TRACK / 2):
+            return False
+    for tl, s2, tnet, *tw in tracks:
+        if tl == layer and tnet != net and seg.Collide(s2, mm(CLR + TRACK / 2 + (tw[0] if tw else TRACK) / 2)):
+            return False
+    return True
+
+
+added, failed = 0, []
+for f in b.GetFootprints():
+    if ONLY and f.GetReference() not in ONLY:
+        continue
+    for p in f.Pads():
+        net = p.GetNetname()
+        if net not in PLANES or p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            continue
+        layer = pcbnew.B_Cu if p.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
+        TRACK, VIA_D, VIA_DRILL = FAN[net]
+        CLR = HV_CLR if net in HV else 0.2
+        c = p.GetPosition()
+        bb = p.GetBoundingBox()
+        if min(bb.GetWidth(), bb.GetHeight()) > mm(3):
+            # exposed pad: a grid of vias inside the pad itself
+            n = 3
+            pitch = min(bb.GetWidth(), bb.GetHeight()) / (n + 0.5)
+            for i in range(n):
+                for j in range(n):
+                    pos = pcbnew.VECTOR2I(int(c.x + (i - 1) * pitch), int(c.y + (j - 1) * pitch))
+                    v = pcbnew.PCB_VIA(b)
+                    v.SetPosition(pos)
+                    v.SetWidth(mm(VIA_D))
+                    v.SetDrill(mm(VIA_DRILL))
+                    v.SetNet(p.GetNet())
+                    v.SetLocked(True)
+                    b.Add(v)
+                    vias.append((pos.x, pos.y))
+                    added += 1
+            continue
+        half = max(bb.GetWidth(), bb.GetHeight()) / 2
+        best = None
+        for ring in range(0, 14):
+            d = min(bb.GetWidth(), bb.GetHeight()) / 2 + mm(VIA_D / 2 + 0.1 + ring * 0.2)
+            for k in range(16):
+                a = k * math.pi / 8
+                pos = pcbnew.VECTOR2I(int(c.x + d * math.cos(a)), int(c.y + d * math.sin(a)))
+                if legal_via(pos, net) and legal_track(layer, c, pos, net, p):
+                    best = pos
+                    break
+            if best:
+                break
+        if best is None:
+            failed.append(f'{f.GetReference()}.{p.GetNumber()}')
+            continue
+        t = pcbnew.PCB_TRACK(b)
+        t.SetStart(c)
+        t.SetEnd(best)
+        t.SetWidth(mm(TRACK))
+        t.SetLayer(layer)
+        t.SetNet(p.GetNet())
+        t.SetLocked(True)
+        b.Add(t)
+        v = pcbnew.PCB_VIA(b)
+        v.SetPosition(best)
+        v.SetWidth(mm(VIA_D))
+        v.SetDrill(mm(VIA_DRILL))
+        v.SetNet(p.GetNet())
+        v.SetLocked(True)
+        b.Add(v)
+        vias.append((best.x, best.y))
+        tracks.append((layer, pcbnew.SEG(c, best), net, TRACK))
+        added += 1
+
+pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+pcbnew.SaveBoard(sys.argv[1], b)
+print('fanout vias', added, 'failed', failed)
