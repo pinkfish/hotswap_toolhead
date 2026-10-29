@@ -6,12 +6,16 @@ mm = pcbnew.FromMM; O = 100.0
 import kikit, os
 LIB = os.path.join(os.path.dirname(kikit.__file__), 'resources', 'kikit.pretty')
 b = pcbnew.LoadBoard(sys.argv[1])
+edges = [d for d in b.GetDrawings() if d.GetLayer() == pcbnew.Edge_Cuts]   # outline geometry, not its line width
+W = max(max(d.GetStart().x, d.GetEnd().x) for d in edges) / 1e6 - O
+H = max(max(d.GetStart().y, d.GetEnd().y) for d in edges) / 1e6 - O
 TABS = [  # origin 0.5 mm outside the edge (KiKit grows the tab from there), orientation points into the board, width
-    ('KT1', 16.95, -0.5, 270, 1.6),    # top
-    ('KT2', 16.95, 35.5, 90, 1.6),    # bottom
-    ('KT3', -0.5, 21.3, 0, 2.0),      # left
-    ('KT4', 31.5, 21.3, 180, 2.0),   # right
+    ('KT1', 16.95, -0.5, 270, 1.6),     # top
+    ('KT2', 16.95, H + 0.5, 90, 1.6),   # bottom
+    ('KT3', -0.5, 21.3, 0, 2.0),        # left
+    ('KT4', W + 0.5, 21.3, 180, 2.0),   # right
 ]
+print('board %g x %g mm' % (W, H))
 for ref, x, y, rot, w in TABS:
     f = pcbnew.FootprintLoad(LIB, 'Tab')
     f.SetFPID(pcbnew.LIB_ID('kikit', 'Tab'))

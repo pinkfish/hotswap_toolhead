@@ -16,6 +16,19 @@ cp hardware/toolhead.kicad_dru $P/src.kicad_dru
 $PY tools/panel_tabs.py hardware/toolhead.kicad_pcb $P/src.kicad_pcb 2>/dev/null
 $PY -m kikit.ui panelize -p tools/panel.json $P/src.kicad_pcb $P/toolhead_panel.kicad_pcb 2>&1 | grep -v 'Debug: Adding' || true
 rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru
+# KiKit's fiducials and tooling holes (KiKit_FID_*, KiKit_TO_*) and the bare solder-jumper pads
+# (JP1, JP3) have no part to place: keep them out of every BOM and position file, including
+# the Fabrication Toolkit's, which JLCPCB rejects when the CPL names parts the BOM lacks
+$PY - 2>&1 <<'PY' | grep -v 'Debug\|assert\|leak' || true
+import re, pcbnew
+f = 'hardware/panel/toolhead_panel.kicad_pcb'
+b = pcbnew.LoadBoard(f); n = 0
+for fp in b.GetFootprints():
+    if re.match(r'KiKit_(FID|TO)_|JP[13]_\d+$', fp.GetReference()):
+        fp.SetExcludedFromBOM(True); fp.SetExcludedFromPosFiles(True); n += 1
+pcbnew.SaveBoard(f, b)
+print(n, 'panel footprints excluded from BOM and position files')
+PY
 cp hardware/toolhead.kicad_dru $P/toolhead_panel.kicad_dru
 # H2's ring is exactly 0.5 mm from the board corner; KiKit's rebuilt outline puts that corner
 # 0.0006 mm closer, so the panel allows 0.49 mm there

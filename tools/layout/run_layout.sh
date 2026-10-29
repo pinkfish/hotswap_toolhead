@@ -3,6 +3,8 @@
 #   strip -> place -> hand pre-routes -> plane fan-out -> Freerouting -> pours -> maze loop -> clean-up
 # Result: workdir/board.kicad_pcb. Review it and run tools/verify.py before copying it over
 # hardware/toolhead.kicad_pcb. See README.md here for the steps that were done by hand.
+# The board is always fabricated as a 3 x 3 panel: after copying it in, run tools/fab.sh and
+# tools/make_panel.sh and commit the panel with the board (docs/design_spec.md, "Panel").
 # BH (board height, default 33), C1Y, MAZE_ITER (default 6), FR_PASSES, FR_TIMEOUT.
 set -o pipefail
 . "$(dirname "$0")/env.sh"
@@ -46,3 +48,4 @@ $PY "$L/finalize.py" board.kicad_pcb drc_final_in.json board.kicad_pcb 2>&1 | F
 $PY "$L/undangle.py" board.kicad_pcb 2>&1 | F | tail -1
 $PY "$L/silk.py" board.kicad_pcb 2>&1 | F | tail -1
 bash "$L/check.sh" board.kicad_pcb | grep -v "^   \["
+echo "Next: copy board.kicad_pcb to hardware/, then run tools/fab.sh and tools/make_panel.sh (3 x 3 panel)"

@@ -6,7 +6,15 @@ These scripts placed and routed `hardware/toolhead.kicad_pcb` (31 × 33 mm, 4 la
 tools/layout/run_layout.sh /path/to/workdir
 ```
 
-`run_layout.sh` copies the project files from `hardware/` into the work directory. It strips the committed board of copper and runs every step below. It leaves `board.kicad_pcb` there and never writes to `hardware/`. Check the result in KiCad and with `tools/verify.py` before copying it over `hardware/toolhead.kicad_pcb`. Then run `tools/fab.sh` to regenerate `gerber/`, and `tools/make_panel.sh` to rebuild the panel.
+`run_layout.sh` copies the project files from `hardware/` into the work directory. It strips the committed board of copper and runs every step below. It leaves `board.kicad_pcb` there and never writes to `hardware/`. Check the result in KiCad and with `tools/verify.py` before copying it over `hardware/toolhead.kicad_pcb`.
+
+The layout isn't finished at that point. The board is always fabricated as a 3 × 3 panel (see "Panel" in `docs/design_spec.md`), so every layout change must be followed by:
+
+1. `tools/fab.sh`, which regenerates the single-board `gerber/`.
+2. `tools/make_panel.sh`, which rebuilds `hardware/panel/` and `gerber/panel/`. It must report 9 boards and 567 placements, with panel DRC at 0 errors and 0 unconnected.
+3. Committing the board, `gerber/`, `hardware/panel/` and `gerber/panel/` together.
+
+Keep the four tab windows clear of parts at the board edges (top/bottom x 15.6–17.9, left/right y 20.0–22.5), or move the tabs in `tools/panel_tabs.py`.
 
 ## Requirements
 

@@ -220,6 +220,13 @@ Target a 31 × 33 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (conn
 
 **Fab:** standard JLCPCB/PCBWay rules work (0.15 mm trace/space, 0.3 mm vias). Add test points for +24V, +3V3, GND, CAN_H, CAN_L and TH_SIG.
 
+**Panel (required):** the board is ordered and assembled as a 3 × 3 array, never as a single board. A layout isn't finished until the panel has been rebuilt from it. `hardware/toolhead.kicad_pcb` is the one-board source, and `hardware/panel/toolhead_panel.kicad_pcb` is what gets fabricated.
+
+- **Rebuild after every layout change:** after any change to placement, routing, the outline or the holes, run `tools/make_panel.sh`. It must report 9 boards and 567 placements (63 per board), with panel DRC at 0 errors and 0 unconnected. Commit `hardware/panel/` and `gerber/panel/` together with the board change. An out-of-date panel, or one with only the single-board files updated, is not ready to order.
+- **Panel format:** 3 rows × 3 columns. Gaps are 2 mm between columns and 6 mm between rows, because J1 overhangs the top edge by 2.8 mm and J2 the bottom by 2.3 mm. There's a 5 mm frame with four 1.152 mm tooling holes and three fiducials. Boards are held by mouse bites (0.5 mm holes at 0.8 mm pitch, centred on the edge), with no V-cuts. Designators get a per-board suffix (`R1_0` … `R1_8`). The panel is 111 × 129 mm for the 31 × 33 board.
+- **Tab windows the layout must keep clear:** every board has four tabs. On the top and bottom edges there's a 1.6 mm tab at x 16.95, in the x 15.6–17.9 window. On the left and right edges there's a 2 mm tab at y 21.3, in the y 20.0–22.5 window. In those windows, keep connectors, overhanging parts, copper and silk away from the edge on both sides of the board, so the bites can be drilled and the break-off doesn't damage anything. If a layout change moves parts into a window, move the tab in `tools/panel_tabs.py` to a gap that's clear on both neighbouring boards. Tab positions follow the board outline, so a new board size moves the bottom and right tabs automatically.
+- **Order:** upload `gerber/panel/toolhead_panel-gerbers.zip` with `toolhead_panel-bom-jlcpcb.csv` and `toolhead_panel-cpl-jlcpcb.csv`, as a customer-supplied panel. Check every bottom-side rotation in JLCPCB's placement preview.
+
 **As routed (31 × 33 board), where it differs from the guidance above:**
 
 - **Q2 drain:** about 28 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the crystal and the MCU decoupling. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
@@ -302,5 +309,6 @@ Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID 
 - [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, fixed CAN order, pin 3 = CAN_H, pin 4 = CAN_L
 - [x] Analog supply settled: VREF+ is a separate pin (5), VDD/VDDA bonded on pin 6, so FB1 is fitted
 - [x] Mounting settled: two M3 holes, left edge and bottom-right corner, about 27.5 mm apart; fan settled at 0.5 A or less
+- [x] Fabrication settled: ordered as a 3 × 3 panel (`tools/make_panel.sh`), rebuilt and checked after every layout change
 - [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the buck needs 4 V minimum)
 - [ ] Prototype check: measure Q2's case temperature with a thermocouple during a long print in the enclosed printer; it should stay under about 110 °C
