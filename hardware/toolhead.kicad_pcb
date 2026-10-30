@@ -7846,7 +7846,7 @@
 				(justify mirror)
 			)
 		)
-		(property "Value" "STM32G0B1CBU6"
+		(property "Value" "STM32G0B1CEU6"
 			(at 0 -4.83 270)
 			(layer "B.Fab")
 			(uuid "acd5f5d4-d8b8-4c89-af4c-600d20e314e9")
@@ -7895,7 +7895,7 @@
 				(justify mirror)
 			)
 		)
-		(property "LCSC" "C5270156"
+		(property "LCSC" "C2829190"
 			(at 0 0 270)
 			(layer "B.SilkS")
 			(hide yes)
