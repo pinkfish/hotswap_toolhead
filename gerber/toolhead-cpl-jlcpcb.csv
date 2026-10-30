@@ -22,7 +22,7 @@ D2,103.450mm,-102.750mm,Bottom,180
 D3,125.400mm,-111.000mm,Bottom,0
 D4,109.000mm,-114.279mm,Bottom,0
 D5,116.750mm,-131.100mm,Bottom,90
-D6,111.800mm,-121.500mm,Top,0
+D6,111.821mm,-121.500mm,Top,180
 D7,126.400mm,-116.450mm,Bottom,0
 D9,123.000mm,-131.500mm,Bottom,270
 F1,114.700mm,-104.600mm,Bottom,90
@@ -57,8 +57,8 @@ R21,122.100mm,-104.500mm,Bottom,90
 R22,101.400mm,-119.950mm,Top,0
 R23,103.500mm,-119.950mm,Top,0
 SW1,129.000mm,-111.600mm,Top,90
-U1,125.900mm,-120.300mm,Bottom,270
+U1,125.900mm,-120.300mm,Bottom,90
 U3,109.050mm,-118.200mm,Bottom,0
-U5,125.000mm,-107.200mm,Bottom,90
+U5,125.000mm,-107.200mm,Bottom,0
 U6,118.800mm,-114.100mm,Bottom,0
 Y1,116.500mm,-120.900mm,Bottom,270

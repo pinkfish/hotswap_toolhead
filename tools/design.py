@@ -146,7 +146,7 @@ PARTS = [
     two("C11", "C", "1uF", "C0402", "VREFP", "GND", lcsc="C52923", block="MCU"),
     two("C12", "C", "100nF", "C0402", "VREFP", "GND", lcsc="C1525", block="MCU"),
     P("Y1", "box", "8MHz 20pF 3225", "XTAL3225", {1: "OSC_IN", 2: "GND", 3: "OSC_OUT", 4: "GND"},
-      lcsc="C9002", block="MCU", layout=XTAL4_LAYOUT),
+      lcsc="C2682774", block="MCU", layout=XTAL4_LAYOUT),
     two("C13", "C", "33pF C0G", "C0402", "OSC_IN", "GND", lcsc="C1562", block="MCU"),
     two("C14", "C", "33pF C0G", "C0402", "OSC_OUT", "GND", lcsc="C1562", block="MCU"),
     two("C15", "C", "100nF", "C0402", "NRST", "GND", lcsc="C1525", block="MCU"),

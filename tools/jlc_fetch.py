@@ -15,7 +15,7 @@ import urllib.request
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 DB = os.path.join(ROOT, 'tools', 'jlc_footprints.json')
-URL = 'https://easyeda.com/api/products/{}/components?version=6.4.19.5'
+URL = 'https://lceda.cn/api/products/{}/components?version=6.4.19.5'
 
 
 def fetch(code):

@@ -150,7 +150,7 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | Q1 | Vishay SQJ461EP-T1_GE3 60 V P-MOSFET (C3279500) | PowerPAK SO-8 | 1 | Reverse polarity |
 | Q2 | Alpha & Omega AON7264E 60 V N-MOSFET, 13.3 mΩ max at 4.5 V (C431191) | DFN 3 × 3 | 1 | Heater; driven directly by the MCU; project footprint |
 | Q3 | Winsok WST6066A 60 V N-MOSFET, 120 mΩ at 2.5 V, 2.1 A (C148352) | SOT-23 | 1 | Fan |
-| Y1 | 8 MHz crystal, ±20 ppm, 20 pF load (YXC X322508MSB4SI) | 3225 4-pin | 1 | JLCPCB C9002; 2 × 33 pF C0G 0402 load caps |
+| Y1 | 8 MHz crystal, ±10 ppm, 20 pF load (YXC X32258MSB4SI) | 3225 4-pin | 1 | LCSC C2682774 (not C9002, which is the 12 MHz X322512MSB4SI); 2 × 33 pF C0G 0402 load caps |
 | F1 | 6 A one-time fuse, BSMD1206C-1600T (C49328461) | 1206 | 1 | Main 24 V input |
 | F2 | PTC 0.75 A hold, 33 V, JK-mSMD075-33 (C369169) | 1812 | 1 | Fan +24V |
 | D1 | SMF33CA bidirectional TVS, 200 W (C19077520) | SOD-123FL | 1 | Stays off with a reversed supply |
@@ -185,7 +185,7 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | --- | --- | --- |
 | 100 nF decoupling | 16 V X7R 0402 (C1525); the 50 V spot (C5) stays 0603 (C14663) |
 | CAN termination | Uni-Royal 120 Ω 1% 0805 | C17437 |
-| 8 MHz crystal | YXC X322508MSB4SI, 3225, 20 pF load | C9002 |
+| 8 MHz crystal | YXC X32258MSB4SI, 3225, 20 pF load | C2682774 |
 | 33 pF load caps | 50 V C0G 0402 | C1562 |
 | Buck FB top | 33 kΩ 1% 0402 | C25779 |
 | Status LED resistor | 100 Ω 1% 0402 | C25076 |
