@@ -51,6 +51,6 @@ Freerouting's result depends on the pass count, so the committed board came from
 
 ## Done by hand on the committed board
 
-Nothing beyond the scripted run: the committed board is a run's `board.kicad_pcb` (31 × 36, `FR_PASSES` 55) with Q2's source pads set to a solid zone connection, which `misc_pre.py` now does itself. The CAN H/L labels on F.Silkscreen at (5.55, 7.65) and (5.55, 5.1) come through from the stripped board.
+The committed board is a run's `board.kicad_pcb` (31 × 36, `FR_PASSES` 55) with Q2's source pads set to a solid zone connection, which `misc_pre.py` now does itself, plus one later hand edit: JP2 changed from the Pin1Left to the Pin1Right SMD header footprint (the real part's leg stagger) with its pin numbers swapped, so TH_SIG's pad moved up and JP2_A's down by 1.27 mm. Their stubs were re-routed, and VREFP's turn from the left edge onto the bottom-edge run now drops to y 33.81 before turning, clear of JP2's lower pad. A fresh run routes JP2 by itself. The CAN H/L labels on F.Silkscreen at (5.55, 7.65) and (5.55, 5.1) come through from the stripped board.
 
 Coordinates are in mm from the board's top-left corner, seen from the top. KiCad places the board at an offset of (100, 100).

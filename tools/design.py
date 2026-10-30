@@ -87,7 +87,7 @@ FP = {
     "F1812": "Fuse:Fuse_1812_4532Metric",
     "SW": "Button_Switch_SMD:SW_SPST_EVQP7C",  # side-push, 3.5 x 2.9 mm
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Left",
+    "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Right",
     "NANOFIT8": "Connector_Molex:Molex_Nano-Fit_105314-xx08_2x04_P2.50mm_Horizontal",
     "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
 }
@@ -208,7 +208,9 @@ PARTS = [
     two("R17", "R", "4.7k 0.1% 25ppm", "R0402", "VREFP", "TH_SIG", lcsc="C281778", block="Thermistor"),
     two("R18", "R", "4.12k 0.1% 25ppm", "R0402", "VREFP", "JP2_A", lcsc="C852812", block="Thermistor"),
     # 1.27 mm SMD header; the 1.27 mm shunt (C150949) is fitted by hand.
-    P("JP2", "box", "NTC/PT1000", "HDR2", {1: "JP2_A", 2: "TH_SIG"},
+    # Pin1Right is the header's real leg stagger (JLCPCB footprint C41375972); the shunt is
+    # symmetric, so pin 1 is TH_SIG to keep each net's pad on its side
+    P("JP2", "box", "NTC/PT1000", "HDR2", {1: "TH_SIG", 2: "JP2_A"},
       lcsc="C41375972", block="Thermistor", layout=CONN2_LAYOUT),
     two("R19", "R", "1k", "R0402", "TH_SIG", "TH_ADC", block="Thermistor"),
     two("C19", "C", "100nF", "C0402", "TH_ADC", "GND", lcsc="C1525", block="Thermistor"),

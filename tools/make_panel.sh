@@ -56,15 +56,12 @@ with open(G + 'toolhead_panel-bom-jlcpcb.csv', 'w', newline='') as fh:
     for r in rows:
         refs = [x for d in r['Designator'].split(',') for x in sorted(n[d.strip()], key=lambda s: int(s.rsplit('_', 1)[1]))]
         w.writerow([r['Comment'], ','.join(refs), r['Footprint'], r['LCSC Part #']])
-with open(G + 'toolhead_panel-cpl-jlcpcb.csv', 'w', newline='') as fh:
-    w = csv.writer(fh); w.writerow(['Designator', 'Mid X', 'Mid Y', 'Layer', 'Rotation'])
-    for r in pos:
-        w.writerow([r['Ref'], f"{float(r['PosX']):.3f}mm", f"{float(r['PosY']):.3f}mm",
-                    'Top' if r['Side'] == 'top' else 'Bottom', f"{float(r['Rot']):g}"])
 boards = {r['Ref'].rsplit('_', 1)[1] for r in pos}
 print(len(pos), 'placements on', len(boards), 'boards;', len(base), 'parts per board')
 PY
 rm -f $P/pos.csv
+# CPL fitted to JLCPCB's own footprints (see tools/jlc_cpl.py)
+$PY tools/jlc_cpl.py $P/toolhead_panel.kicad_pcb $G/toolhead_panel-cpl-jlcpcb.csv 2>&1 | grep -v -e Debug -e assert || true
 (cd $G && zip -q toolhead_panel-gerbers.zip *.g* *.drl)
 $K pcb drc --severity-error --format json -o $P/drc.json $P/toolhead_panel.kicad_pcb >/dev/null
 $PY -c "import json; d=json.load(open('$P/drc.json')); print('panel DRC errors', len(d['violations']), 'unconnected', len(d['unconnected_items']))"
