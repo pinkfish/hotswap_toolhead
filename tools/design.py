@@ -136,9 +136,9 @@ PARTS = [
     # ---------------- MCU ----------------
     P("U6", "box", "STM32G0B1CBU6", "QFN48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
-       10: "NRST", 13: "SENS_IN", 14: "TH_ADC", 19: "CAN_RX", 20: "CAN_TX",
+       10: "NRST", 13: "TH_ADC", 14: "SENS_IN", 17: "FAN_PWM", 19: "CAN_RX", 20: "CAN_TX",
        33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
-       44: "LED_STAT", 47: "FAN_PWM", 48: "HEAT_PWM", 49: "GND"},
+       44: "LED_STAT", 48: "HEAT_PWM", 49: "GND"},
       lcsc="C5270156", block="MCU", layout=STM32_LAYOUT),
     two("C9", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="MCU"),
     two("C10", "C", "10uF 25V X5R", "C0805", "+3V3", "GND", lcsc="C15850", block="MCU"),

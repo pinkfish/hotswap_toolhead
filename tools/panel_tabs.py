@@ -1,6 +1,8 @@
 """panel_tabs.py in.kicad_pcb out.kicad_pcb - add KiKit tab annotations where both neighbours are clear.
-Top/bottom edges carry J1/J5 and J2 overhangs, so the tabs sit in the only windows
-free on both sides of each gap: x 15.6-17.9 (top and bottom) and y 20.0-22.5 (left and right, bite holes kept off J1, D6 and JP3)."""
+J1 and J5 fill the top edge and J2 (centred, overhanging) the bottom, so no top/bottom window is
+clear on both sides of a row gap: the boards are held by side tabs only, two per side, in the
+windows clear on both neighbours: y 9.0-10.6 (between J5 and SW1 on the right) and
+y 23.2-29.5 (between C4 and H2 on the right, below R22 on the left)."""
 import sys, pcbnew
 mm = pcbnew.FromMM; O = 100.0
 import kikit, os
@@ -10,10 +12,10 @@ edges = [d for d in b.GetDrawings() if d.GetLayer() == pcbnew.Edge_Cuts]   # out
 W = max(max(d.GetStart().x, d.GetEnd().x) for d in edges) / 1e6 - O
 H = max(max(d.GetStart().y, d.GetEnd().y) for d in edges) / 1e6 - O
 TABS = [  # origin 0.5 mm outside the edge (KiKit grows the tab from there), orientation points into the board, width
-    ('KT1', 16.95, -0.5, 270, 1.6),     # top
-    ('KT2', 16.95, H + 0.5, 90, 1.6),   # bottom
-    ('KT3', -0.5, 21.3, 0, 2.0),        # left
-    ('KT4', W + 0.5, 21.3, 180, 2.0),   # right
+    ('KT1', -0.5, 9.8, 0, 1.4),         # left
+    ('KT2', -0.5, 26.3, 0, 2.5),
+    ('KT3', W + 0.5, 9.8, 180, 1.4),    # right
+    ('KT4', W + 0.5, 26.3, 180, 2.5),
 ]
 print('board %g x %g mm' % (W, H))
 for ref, x, y, rot, w in TABS:

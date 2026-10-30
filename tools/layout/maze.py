@@ -25,7 +25,9 @@ HV = {'/VIN_RAW', '/VIN_F', '/+24V', '/HEAT_N', '/FAN_N', '/FAN_P'}
 VIA_D, VIA_DRILL = 0.6, 0.3
 HOLE_CLR, EDGE_CLR, MARGIN = 0.25, 0.5, 0.03
 VIA_COST, DIAG = 25, math.sqrt(2)
-WIDTH = {'/+3V3': 0.25, '/USB_D_P': 0.25, '/USB_D_N': 0.25}
+WIDTH = {'/+3V3': 0.25, '/USB_D_P': 0.25, '/USB_D_N': 0.25,
+         # net-class widths, so a maze route never undercuts the high-current DRC rules
+         '/+24V': 0.8, '/VIN_RAW': 0.8, '/VIN_F': 0.8, '/HEAT_N': 0.8, '/FAN_N': 0.4, '/FAN_P': 0.4}
 e = b.GetBoardEdgesBoundingBox()
 EX0, EY0, EX1, EY1 = (tomm(v) for v in (e.GetLeft(), e.GetTop(), e.GetRight(), e.GetBottom()))
 

@@ -2,7 +2,7 @@
     corner_pre.py board.kicad_pcb
 Same cluster as rev A's routed board, shifted with U6: parts placed with pad 1 up/down,
 +3V3 pins 4 and 6 dropped to staggered vias so VREFP (pin 5) runs straight down between
-them, and GND pin 7 tied into the exposed pad.
+them, and GND pin 7 tied into the exposed pad. VREFP's long run to R17 starts here too.
 """
 import sys
 
@@ -22,7 +22,6 @@ PLACE = {
     'C12': (18.44, 29.48, 'up'),
     'FB1': (19.46, 29.48, 'down'),     # pad 2 (VREFP) on top, in line with C11/C12
     'C13': (16.4, 31.8, 'up'),
-    'C10': (18.9, 32.85, 0),
     'C14': (11.6, 31.4, 'down'),       # GND pad up, so it can tie to C15's (TH_ADC boxes it in below)
     'C15': (11.45, 28.6, 'up'),        # 0.3 right of rev A: opens the TH_ADC lane by J2
 }
@@ -118,9 +117,9 @@ xr = p1[2] + 0.3
 R((x8, yp), (x8, p1[1] + 0.2), (p1[2] - 0.25, p1[1] + 0.4), net='/OSC_IN')
 R((x8, p1[1] + 0.2), (xr, p1[1] + 0.4), (xr, c13[1]), c13, net='/OSC_IN')
 R(at(y1, '4'), at(y1, '2'), net='/GND')
-# TH_ADC's lane (th_pre) closes off the GND pads under the crystal: tie them to neighbours with vias
+# TH_ADC's lane (left_pre) closes off the GND pads under the crystal: tie them to neighbours with vias
 R(at(FP['C14'], '2'), at(FP['C15'], '2'), net='/GND')
-g = at(FP['C14'], '2'); g = (g[0] - 0.2, g[1] - 0.35)   # that pair is boxed in too: via on C14's pad edge, clear of Q2's drain
+g = at(FP['C14'], '2'); g = (g[0] - 0.1, g[1] - 0.35)   # that pair is boxed in too: via on C14's pad edge, clear of TH_ADC's via and D6
 gv = pcbnew.PCB_VIA(b)
 gv.SetPosition(pcbnew.VECTOR2I(mm(OX + g[0]), mm(OY + g[1])))
 gv.SetWidth(mm(0.6))
@@ -129,5 +128,22 @@ gv.SetNet(b.FindNet('/GND'))
 gv.SetLocked(True)
 b.Add(gv)
 R(at(y1, '2'), at(FP['C13'], '2'), net='/GND')
+# VREFP's exit towards the thermistor pull-up (R17, far left): the C11/C12/FB1 row is closed
+# in above by the pin vias and below by the GND/+3V3 pads, so it leaves round the east side
+# of FB1 and drops on B.Cu to below the row; the router takes it on from there
+fb, f1 = at(FP['FB1'], '2'), box(FP['FB1'], '1')
+xe = f1[2] + 0.36
+R(fb, (xe, fb[1]), (xe, f1[3] + 0.13), (fb[0] + 0.14, f1[3] + 0.54), (fb[0] + 0.14, f1[3] + 1.2), net='/VREFP')
+# that loop closes in FB1's +3V3 pad: it gets its own via, just below and to the left
+fp1 = at(FP['FB1'], '1')
+vv = (fp1[0] - 0.46, f1[3] + 0.6)
+R(fp1, (fp1[0] - 0.2, f1[3] + 0.2), vv, net='/+3V3')
+v = pcbnew.PCB_VIA(b)
+v.SetPosition(pcbnew.VECTOR2I(mm(OX + vv[0]), mm(OY + vv[1])))
+v.SetWidth(mm(0.6))
+v.SetDrill(mm(0.3))
+v.SetNet(b.FindNet('/+3V3'))
+v.SetLocked(True)
+b.Add(v)
 pcbnew.SaveBoard(sys.argv[1], b)
 print('corner placed, shift %.2f %.2f' % (DX, DY))

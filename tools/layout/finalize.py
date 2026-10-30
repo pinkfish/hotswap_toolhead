@@ -1,8 +1,9 @@
 """Last DRC clean-up.
     finalize.py in.kicad_pcb drc.json out.kicad_pcb
 - pads reported as starved thermals get a solid zone connection
-- dangling vias (escape vias the router ended up not using) are removed; their
-  stubs stay, since the route usually continues from the via position on that layer
+- dangling vias (escape vias the router ended up not using) are removed, unless that would
+  open a connection; their stubs stay, since the route usually continues from the via
+  position on that layer
 """
 import json
 import sys
@@ -35,8 +36,23 @@ for pos in dangling:
     for v in b.GetTracks():
         if v.GetClass() == 'PCB_VIA' and (v.GetPosition() - pos).EuclideanNorm() < 1000:
             kill.append(v)
-print('pads made solid', n, 'removed', len(kill))
+
+
+def unrouted():
+    b.BuildConnectivity()
+    return b.GetConnectivity().GetUnconnectedCount(False)
+
+
+# DRC can call a via dangling when a route still runs through it; keep any via whose
+# removal would open a connection
+base, removed = unrouted(), 0
 for t in kill:
     b.Remove(t)
+    if unrouted() > base:
+        b.Add(t)
+        print('kept', t.GetNetname(), 'via: still carries the route')
+    else:
+        removed += 1
+print('pads made solid', n, 'removed', removed)
 pcbnew.ZONE_FILLER(b).Fill(b.Zones())
 pcbnew.SaveBoard(dst, b)

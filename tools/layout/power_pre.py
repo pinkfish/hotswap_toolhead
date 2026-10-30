@@ -18,7 +18,8 @@ B = pcbnew.B_Cu
 # net: outline (board mm) of the bottom-side pours
 POURS = {
     # J1 pin 1 to F1 pad 1, stepping down past Q1's drain pins
-    '/VIN_RAW': [(13.4, 5.0), (15.9, 5.0), (15.9, 10.4), (11.4, 10.4), (11.4, 6.6), (13.4, 6.6)],
+    '/VIN_RAW': [(13.4, 5.0), (15.9, 5.0), (15.9, 8.0), (14.3, 8.0), (14.3, 10.4), (11.4, 10.4),
+                 (11.4, 6.6), (13.4, 6.6)],   # stepped in above U6's top pins
     # F1 pad 2 to Q1's drain, with a branch round D1's GND pad to D1 pad 1
     '/VIN_F': [(8.4, 0.6), (16.8, 0.6), (16.8, 4.9), (18.9, 4.9), (18.9, 7.6), (16.2, 7.6),
                (16.2, 4.7), (8.4, 4.7)],

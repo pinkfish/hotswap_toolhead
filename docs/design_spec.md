@@ -4,7 +4,7 @@ Oct 23, 2026
 
 ## Overview and assumptions
 
-A 31 × 33 mm, 4-layer board (connectors, buttons, LEDs and the bulkier passives on the top side, everything else on the bottom, like the FYSETC H36 and Mellow Tool-Lite) with two M3 heat-set-insert mounting holes that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (heater, fan, thermistor and switch share one 2×4 Nano-Fit plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
+A 31 × 36 mm, 4-layer board (connectors, buttons, LEDs and the bulkier passives on the top side, everything else on the bottom, like the FYSETC H36 and Mellow Tool-Lite) with two M3 heat-set-insert mounting holes that takes 24 V and CAN on one connector and drives one heater, one fan, one temperature sensor and one switch input (heater, fan, thermistor and switch share one 2×4 Nano-Fit plug), with a USB-C port for flashing and debugging. It is built around an STM32G0B1 so it runs Klipper (with Katapult bootloader) out of the box, like common 3D-printer toolhead boards.
 
 Design targets, chosen where the request left them open:
 
@@ -63,16 +63,16 @@ The MCU is an STM32G0B1CB in the 105 °C temperature grade (order code ending T7
 | USB D− | PA11 | USB_DM | Via USBLC6 to J5 |
 | USB D+ | PA12 | USB_DP | Via USBLC6 to J5 |
 | Heater PWM | PB9 | GPIO / TIM17_CH1 | To Q2 gate via 10 kΩ; 10 kΩ pull-down at the pin. Pin 48, the corner next to Q2's gate network (Klipper drives heaters with software PWM, so any GPIO would do) |
-| Fan PWM | PB8 | TIM16_CH1 | To Q3 gate via 1 kΩ; 10 kΩ pull-down at the pin |
-| Thermistor | PA3 | ADC1_IN3 | RC-filtered, clamped |
-| Switch sensor | PA2 | GPIO | 10 kΩ pull-up to 3.3 V, 1 kΩ + 100 nF filter; switch closes to GND |
+| Fan PWM | PA6 | TIM16_CH1 | To Q3 gate via 1 kΩ; 10 kΩ pull-down at the pin |
+| Thermistor | PA2 | ADC1_IN2 | RC-filtered, clamped |
+| Switch sensor | PA3 | GPIO | 10 kΩ pull-up to 3.3 V, 1 kΩ + 100 nF filter; switch closes to GND |
 | Status LED | PB5 | GPIO | Blue LED, 1 kΩ to GND |
 | SWDIO | PA13 | SWD | Not broken out (no SWD header) |
 | SWCLK / BOOT0 | PA14 | SWD / BOOT0 | BOOT pads (JP3) to 3.3 V through 1 kΩ |
 | HSE | PF0 / PF1 | OSC_IN / OSC_OUT | 8 MHz, 20 pF-load crystal with 2 × 33 pF C0G load caps (adjust for board stray capacitance; check oscillator gain margin per ST AN2867) |
 | Reset | NRST | — | 100 nF to GND, RESET button (SW1) to GND |
 
-Decoupling: 100 nF on the single VDD/VDDA pin plus one 10 µF bulk on the 3.3 V rail near the MCU. Unused pins are left as test pads where space allows (PA0, PA1, PB3, PB4 are useful for a future endstop or fan tach). Fan PWM and the switch input sit on PB8 and PA2 rather than PA0/PA1 so that the pin 4–10 side of the package stays free for the crystal and decoupling.
+Decoupling: 100 nF on the single VDD/VDDA pin plus one 10 µF bulk on the 3.3 V rail near the MCU. Unused pins are left as test pads where space allows (PA0, PA1, PB3, PB4 are useful for a future endstop or fan tach). The thermistor, switch and fan PWM sit on PA2, PA3 and PA6 (pins 13, 14 and 17) rather than PA0/PA1, so the pin 4–10 side of the package stays free for the crystal and decoupling and the three J2 signals leave the MCU close together.
 
 ## Heater control output
 
@@ -90,21 +90,21 @@ PWM frequency: Klipper defaults to slow software PWM (~10 Hz) for heaters, which
 The fan uses the same direct-drive low-side topology as the heater, with a flyback diode because a fan motor is inductive.
 
 - **Fan FET (Q3):** 60 V logic-level N-MOSFET in SOT-23 (≥ 1.5 A, fully on at 2.5 V gate). The Tool-Lite uses a 30 V AO3400 here; 60 V keeps the margin over the TVS clamp.
-- **Gate network:** 1 kΩ series resistor from PB8, with a 10 kΩ pull-down from PB8 to GND on the MCU side. The fan keeps the smaller series resistor because it switches at up to 1 kHz.
+- **Gate network:** 1 kΩ series resistor from PA6, with a 10 kΩ pull-down from PA6 to GND on the MCU side. The fan keeps the smaller series resistor because it switches at up to 1 kHz.
 - **Flyback diode (D5):** DSK110 100 V 1 A Schottky (SOD-123FL, the same part as D3, D7 and D9) across the fan terminals, cathode to +24V.
 - **Snubber cap (C):** optional 100 nF / 50 V across the output footprint, unpopulated by default.
-- **PWM:** hardware PWM on PB8 (TIM16_CH1). Use a low frequency (about 100 Hz–1 kHz) for 2-wire fans to avoid whine and stalling. 25 kHz only applies to 4-wire fans with their own PWM input, and it would also cause noticeable switching loss with the 1 kΩ gate resistor.
+- **PWM:** hardware PWM on PA6 (TIM16_CH1). Use a low frequency (about 100 Hz–1 kHz) for 2-wire fans to avoid whine and stalling. 25 kHz only applies to 4-wire fans with their own PWM input, and it would also cause noticeable switching loss with the 1 kΩ gate resistor.
 
 The fan shares J2, a 2×4 Nano-Fit, so keep the fan at 0.5 A or less. A resettable PTC fuse (F2: 0.75 A hold at 25 °C, rated ≥30 V, 1812; a PTC's hold current drops to roughly two-thirds at 70 °C, so this size still carries a 0.5 A fan in a hot chamber without nuisance trips) in the fan's +24V line protects the connector and traces if the fan cable shorts, since the 6 A main fuse would never blow in time. If you later want tach feedback, PA0 is free and can be broken out to a third pin with a 10 kΩ pull-up to 3.3 V.
 
 ## Sensor input
 
-The sensor input is a ratiometric thermistor divider on ADC pin PA3, filtered and clamped so a heater-to-sensor short cannot destroy the MCU.
+The sensor input is a ratiometric thermistor divider on ADC pin PA2, filtered and clamped so a heater-to-sensor short cannot destroy the MCU.
 
 - **Pull-up:** 4.7 kΩ 0.1% (25 ppm/°C) from the ADC reference rail (see Power, analog supply) to the sensor pin. This is Klipper's default `pullup_resistor` for 100k NTCs.
 - **PT1000 option (JP2):** a 2-pin 1.27 mm SMD jumper header (HX PZ1.27-1x2P, C41375972; the 1.27 mm shunt, C150949, is fitted by hand) puts a 4.12 kΩ 0.1% resistor in parallel with the 4.7 kΩ: no shunt = 4.7 kΩ (100k NTC), shunt fitted ≈ 2.2 kΩ (PT1000). Place the header right beside the pull-up resistors so the extra trace stays short and away from the heater and fan. Set `pullup_resistor` in firmware to match.
-- **Filter:** 1 kΩ series resistor into PA3, then 100 nF X7R to AGND at the pin. Time constant ≈ 0.1 ms, far faster than thermal changes, and it gives the ADC a low-impedance source.
-- **Protection:** BAT54S dual Schottky on PA3 (to 3.3 V and to GND) after the 1 kΩ, so a 24 V fault is limited to about 22 mA into the clamp.
+- **Filter:** 1 kΩ series resistor into PA2, then 100 nF X7R to AGND at the pin. Time constant ≈ 0.1 ms, far faster than thermal changes, and it gives the ADC a low-impedance source.
+- **Protection:** BAT54S dual Schottky on PA2 (to 3.3 V and to GND) after the 1 kΩ, so a 24 V fault is limited to about 22 mA into the clamp.
 - **Ground:** the sensor return goes to AGND, joined to GND at a single point near the MCU's VSS/VSSA pin (pin 7; VSSA is bonded to VSS in this package).
 
 Only one sensor-type assumption matters here: if you plan to use a thermocouple or a PT100, this circuit is not suitable and needs a dedicated front end (MAX31856 or MAX31865 over SPI).
@@ -118,7 +118,7 @@ Debugging uses a USB-C receptacle (USB 2.0 Full Speed) for flashing and serial l
 - **ESD (U5):** USBLC6-2SC6 on D+/D−/VBUS, right at the header.
 - **Data lines:** D+ → PA12, D− → PA11, routed as a 90 Ω differential pair and kept short.
 - **VBUS:** to VIN_LOGIC through D3 (see Power), plus 10 µF. 
-- **RESET and BOOT:** RESET (SW1) is a side-push right-angle tactile switch (Panasonic EVQ-P7C01P, 3.5 × 2.9 mm) on the right edge next to J5, reachable with the board mounted. BOOT is not a button but two pads (JP3) on the top side next to SW1: short them with tweezers and tap RESET to enter the ROM DFU bootloader. BOOT is rarely needed: a blank chip enters DFU on its own, and once Katapult is in, double-tapping RESET (or Klipper over CAN) enters Katapult. BOOT only matters for recovery if Katapult itself is broken. On the STM32G0 the BOOT0 pin is only read when the nBOOT_SEL option bit is cleared, so set nBOOT_SEL = 0 over USB DFU (STM32CubeProgrammer, Option Bytes tab) during first programming, before flashing Katapult, if you want that recovery path.
+- **RESET and BOOT:** RESET (SW1) is a side-push right-angle tactile switch (Panasonic EVQ-P7C01P, 3.5 × 2.9 mm) on the right edge next to J5, reachable with the board mounted. BOOT is not a button but two pads (JP3) on the top side between J5 and C1, above the MCU's SWCLK/BOOT0 pin: short them with tweezers and tap RESET to enter the ROM DFU bootloader. BOOT is rarely needed: a blank chip enters DFU on its own, and once Katapult is in, double-tapping RESET (or Klipper over CAN) enters Katapult. BOOT only matters for recovery if Katapult itself is broken. On the STM32G0 the BOOT0 pin is only read when the nBOOT_SEL option bit is cleared, so set nBOOT_SEL = 0 over USB DFU (STM32CubeProgrammer, Option Bytes tab) during first programming, before flashing Katapult, if you want that recovery path.
 
 What USB gives you: DFU flashing, Katapult flashing, Klipper's USB-serial mode for bench testing without a CAN adapter, and USB-to-CAN bridge mode if this board should ever be the CAN master. Bench note: with USB connected to a PC and 24 V connected at the same time, the PC and printer grounds are tied through the USB cable. If CAN errors appear while debugging, use a laptop on battery or an isolated USB adapter.
 
@@ -195,16 +195,16 @@ These parts stay extended because no basic part meets the spec: the MCU (no basi
 
 ## PCB layout guidance
 
-Target a 31 × 33 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (connectors, the FETs, the bulk capacitors, GND pour), In1 solid GND, In2 solid +24V, bottom (the other ICs and passives, GND pour). Every SMD GND and +24V pad gets its own via to its plane; +3.3 V is routed as traces. The +24V plane carries the 3.6 A input current, which 1 oz traces of a routable width cannot.
+Target a 31 × 36 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (connectors, the FETs, the bulk capacitors, GND pour), In1 solid GND, In2 solid +24V, bottom (the other ICs and passives, GND pour). Every SMD GND and +24V pad gets its own via to its plane; +3.3 V is routed as traces. The +24V plane carries the 3.6 A input current, which 1 oz traces of a routable width cannot.
 
-**Floorplan (top view):** connectors, RESET, the BOOT and CAN-termination pads, LEDs, the bulk capacitors (C1, the 24 V ceramics C2/C3 and the 3.3 V C8), JP2, the heater FET Q2 with its gate resistors R13/R14, the fan FET Q3, the TH_ADC clamp D6, the thermistor pull-ups R17/R18 and the switch-sensor parts R22, R23 and C20 on the top side; everything else on the bottom. Moving those up from the bottom let J2 and the parts round it come 2 mm closer to the top end.
+**Floorplan (top view):** connectors, RESET, the BOOT pads with their 1 kΩ (R4) and the CAN-termination pads with R11, LEDs with R5/R6, the bulk capacitors (C1, the 24 V ceramics C2/C3 and the 3.3 V C8), JP2, the heater FET Q2 with its gate resistors R13/R14, the fan FET Q3 with R15/R16, the fan PTC F2, the TH_ADC clamp D6, the thermistor pull-up R18 and the switch-sensor parts R22, R23 and C20 on the top side; everything else on the bottom.
 
-- **Mounting holes:** two M3 holes for 5 mm heat-set inserts, each with a 3 mm-radius keep-out on both sides: H1 on the left edge, 3.5 mm in and 16 mm down from the top; H2 in the bottom-right corner, 3.5 mm in from the right and bottom edges. They are about 27.5 mm apart.
-- **Top end:** J1 (XT30 2+2, right-angle, mouth up, front about 2.8 mm past the edge) and J5 (USB-C, shell flush). Q1, F1 and D1 sit underneath between J1's pins; U3 (CAN) behind J1's signal pins; U5 and the CC resistors between J5's shield pins.
-- **Right edge:** SW1 (RESET, side-push) with the BOOT pads (JP3) just below it.
-- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, in the bottom-left corner and pointing down. Q2 sits on top beside J2's heater pins, directly over the crystal, with Q3 below it; D5 and F2 are under J2. R22, R23 and C20 sit in a row on top between H1's keep-out and J2.
-- **Centre (bottom side):** U6 with its decoupling, VREF and crystal parts on the pin 4–10 side; the buck above and to the right of the MCU, away from the thermistor filter.
-- **Thermistor:** RC filter and clamp close to PA3, away from the heater traces; run TH_SIG from J2 away from FAN_N.
+- **Mounting holes:** two M3 holes for 5 mm heat-set inserts, each with a 3 mm-radius keep-out on both sides: H1 on the left edge, 3.5 mm in and 16 mm down from the top; H2 in the bottom-right corner, 3.5 mm in from the right and bottom edges. They are about 29.1 mm apart.
+- **Top end:** J1 (XT30 2+2, right-angle, mouth up, front about 2.8 mm past the edge) and J5 (USB-C, shell flush). Q1, F1 and D1 sit underneath between J1's pins; U5 and the CC resistors between J5's shield pins. U3 (CAN) is on the left, below J1 and between H1 and the MCU, with the CAN-termination pads (JP1) over it.
+- **Right edge:** SW1 (RESET, side-push), below J5 and the LEDs.
+- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, centred on the bottom edge and pointing down, so a cable leaves the toolhead straight down the middle. F2 and the D6 clamp sit on top in the channel between J2 and the MCU; D5 is under J2. Q2 sits on top to the right of J2's heater pins, over the buck inductor L1, with R13/R14 beside it; Q3 and the fan's gate resistors are to the left of J2. R22, R23 and C20 sit in a row on top between H1's keep-out and J2.
+- **Centre (bottom side):** U6 with its decoupling, VREF and crystal parts on the pin 4–10 side; the buck in the right-hand strip beside and below the MCU, away from the thermistor filter.
+- **Thermistor:** RC filter and clamp close to PA2, away from the heater traces; run TH_SIG from J2 away from FAN_N.
 
 **Current and copper:**
 
@@ -223,21 +223,22 @@ Target a 31 × 33 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (conn
 **Panel (required):** the board is ordered and assembled as a 3 × 3 array, never as a single board. A layout isn't finished until the panel has been rebuilt from it. `hardware/toolhead.kicad_pcb` is the one-board source, and `hardware/panel/toolhead_panel.kicad_pcb` is what gets fabricated.
 
 - **Rebuild after every layout change:** after any change to placement, routing, the outline or the holes, run `tools/make_panel.sh`. It must report 9 boards and 567 placements (63 per board), with panel DRC at 0 errors and 0 unconnected. Commit `hardware/panel/` and `gerber/panel/` together with the board change. An out-of-date panel, or one with only the single-board files updated, is not ready to order.
-- **Panel format:** 3 rows × 3 columns. Gaps are 2 mm between columns and 6 mm between rows, because J1 overhangs the top edge by 2.8 mm and J2 the bottom by 2.3 mm. There's a 5 mm frame with four 1.152 mm tooling holes and three fiducials. Boards are held by mouse bites (0.5 mm holes at 0.8 mm pitch, centred on the edge), with no V-cuts. Designators get a per-board suffix (`R1_0` … `R1_8`). The panel is 111 × 129 mm for the 31 × 33 board.
-- **Tab windows the layout must keep clear:** every board has four tabs. On the top and bottom edges there's a 1.6 mm tab at x 16.95, in the x 15.6–17.9 window. On the left and right edges there's a 2 mm tab at y 21.3, in the y 20.0–22.5 window. In those windows, keep connectors, overhanging parts, copper and silk away from the edge on both sides of the board, so the bites can be drilled and the break-off doesn't damage anything. If a layout change moves parts into a window, move the tab in `tools/panel_tabs.py` to a gap that's clear on both neighbouring boards. Tab positions follow the board outline, so a new board size moves the bottom and right tabs automatically.
+- **Panel format:** 3 rows × 3 columns. Gaps are 2 mm between columns and 6 mm between rows, because J1 overhangs the top edge by 2.8 mm and J2 the bottom by 2.3 mm. There's a 5 mm frame with four 1.152 mm tooling holes and three fiducials. Boards are held by mouse bites (0.5 mm holes at 0.8 mm pitch, centred on the edge), with no V-cuts. Designators get a per-board suffix (`R1_0` … `R1_8`). The panel is 111 × 138 mm for the 31 × 36 board.
+- **Tab windows the layout must keep clear:** every board has four tabs, all on the side edges: J1 and J5 fill the top edge and the centred J2 overhangs the bottom, so no top/bottom window is clear on both sides of a row gap. Each side has a 1.4 mm tab at y 9.8, in the y 9.0–10.6 window between J5 and SW1, and a 2.5 mm tab at y 26.3, in the y 23.2–29.5 window between C4 and H2 (below R22 on the left edge). In those windows, keep connectors, overhanging parts, copper and silk away from the edge on both sides of the board, so the bites can be drilled and the break-off doesn't damage anything. If a layout change moves parts into a window, move the tab in `tools/panel_tabs.py` to a gap that's clear on both neighbouring boards. Tab positions follow the board outline, so a new board width moves the right-hand tabs automatically.
 - **Order:** upload `gerber/panel/toolhead_panel-gerbers.zip` with `toolhead_panel-bom-jlcpcb.csv` and `toolhead_panel-cpl-jlcpcb.csv`, as a customer-supplied panel. Check every bottom-side rotation in JLCPCB's placement preview.
 
-**As routed (31 × 33 board), where it differs from the guidance above:**
+**As routed (31 × 36 board), where it differs from the guidance above:**
 
-- **Q2 drain:** about 28 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the crystal and the MCU decoupling. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
-- **Q2 position:** on the top side directly over the crystal (Y1), not 5 mm from it; the board and the In1 GND plane sit between them.
-- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar, connect solid to the top GND pour and reach the GND plane through 2 vias, not 6+ (the crystal and the 3.3 V decoupling fill the bottom side under them); check the source-side temperature along with Q2's at full heater power.
+- **Q2 drain:** about 31 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the buck inductor and the switch node. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
+- **Q2 position:** on the top side over the buck inductor (L1), about 9.5 mm from the crystal and clear of the MCU.
+- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar, connect solid to the top GND pour and reach the GND plane through 2 vias, not 6+ (one of them is R14's, tied across to pin 1; L1 fills the bottom side under them); check the source-side temperature along with Q2's at full heater power.
 - **Heater path:** the input runs J1 → F1 → Q1 through bottom-layer VIN_RAW/VIN_F pours, and the load current through the In2 +24V plane, rather than 3 mm traces.
 - **Buck switch node:** on the bottom layer, since all ICs are on the bottom.
 - **AGND:** not split; the thermistor filter returns to the solid In1 GND plane.
-- **USB and CAN pairs:** the USB pair reaches U6 in the opposite order to the connector, so it crosses once just below U5: D− drops to the bottom layer between D3's pads and comes back up between the LEDs (3 vias), while D+ stays on top around the LED column (2 vias). CAN_H and CAN_L use one via each.
-- **Thermistor ADC line:** TH_ADC runs from PA3 on the bottom layer down the lane between J2's heater pins and C15/C14, then under the crystal to R19/C19 (about 13 mm, 0.3 mm from the 24 V pads), and on to the D6 clamp on top.
-- **Heater PWM on PB9 (pin 48):** the corner pin next to R13/R14, so HEAT_PWM is a 5 mm run. PB13, the earlier choice, was boxed in at the far corner.
+- **USB and CAN pairs:** U6's USB pins sit only about 1.8 mm below J5's pad row, with SWCLK and a VBUS via in the same strip. From U5's vias both lines run west on top, D+ above D−, each to a via in front of its U6 pin (2 vias each, about 13 and 15 mm). CC1 and CC2 drop through vias just above their J5 pads to R20/R21 under the shell. CAN_H leaves U3 on the bottom layer through the gap beside H1's keep-out (no vias); CAN_L drops through a via below U3 and comes back up beside D4 (2 vias).
+- **Thermistor ADC line:** TH_ADC runs from PA2 on the bottom layer down the lane beside C15/C14 to R19/C19 (about 10 mm), and through one via to the D6 clamp on top. SENS_IN runs in the next lane out to C20 (18 mm, 1 via).
+- **Heater PWM on PB9 (pin 48):** HEAT_PWM leaves through one via and runs on top under SW1 and down the right edge to R13/R14 (about 20 mm), clear of the buck. NRST, which that run closes off from SW1, goes down SW1's outer side, crosses under it on the bottom layer and runs west through the gap between C8 and C2 to C15 (33 mm, 3 vias).
+- **Fan PWM and VREF:** FAN_PWM (PA6) crosses the MCU's left-hand lanes on top, between C1's pads and under JP1, to R15/R16 (25 mm, 1 via). VREFP reaches the thermistor pull-ups R17/R18 at the far left on a long route: down beside J2 on the bottom layer, then on top under J2's pins and up the left edge (about 59 mm, 2 vias); it is a DC reference with C11/C12 at the MCU and the RC filter at the ADC pin.
 - **Test points:** none fitted.
 
 ## Thermal
@@ -280,7 +281,7 @@ canbus_uuid: 0123456789ab
 [heater_generic tool_heater]
 heater_pin: tool:PB9
 sensor_type: Generic 3950
-sensor_pin: tool:PA3
+sensor_pin: tool:PA2
 pullup_resistor: 4700
 max_power: 1.0
 min_temp: 0
@@ -293,7 +294,7 @@ pid_Kd: 100
 [verify_heater tool_heater]
 
 [fan_generic tool_fan]
-pin: tool:PB8
+pin: tool:PA6
 cycle_time: 0.01
 
 [output_pin status_led]

@@ -43,7 +43,7 @@ for net, layer in ([] if ONLY else PLANES.items()):
     b.Add(z)
 
 # keep-outs: rule areas around the mounting holes
-keepouts = [z for z in b.Zones() if z.GetIsRuleArea() and z.GetDoNotAllowVias()]
+keepouts = [z for z in b.Zones() if z.GetIsRuleArea()]   # each checked for what it forbids
 pads = [p for f in b.GetFootprints() for p in f.Pads()]
 vias = []      # (x, y) in IU of vias placed so far
 tracks = []    # (layer, seg shape, net)
@@ -61,7 +61,7 @@ def legal_via(pos, net):
             e.GetTop() + mm(EDGE) < pos.y < e.GetBottom() - mm(EDGE)):
         return False
     for k in keepouts:
-        if k.Outline().Collide(pos, mm(VIA_D / 2)):
+        if k.GetDoNotAllowVias() and k.Outline().Collide(pos, mm(VIA_D / 2)):
             return False
     for p in pads:
         drilled = p.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH, pcbnew.PAD_ATTRIB_NPTH)
@@ -92,7 +92,7 @@ def legal_via(pos, net):
 def legal_track(layer, a, c, net, own_pad):
     seg = pcbnew.SEG(a, c)
     for k in keepouts:
-        if k.Outline().Collide(seg, mm(TRACK / 2)):
+        if k.GetDoNotAllowTracks() and k.IsOnLayer(layer) and k.Outline().Collide(seg, mm(TRACK / 2)):
             return False
     for p in pads:
         if p is own_pad or p.GetNetname() == net or not p.IsOnLayer(layer):
@@ -129,6 +129,11 @@ for f in b.GetFootprints():
             for i in range(n):
                 for j in range(n):
                     pos = pcbnew.VECTOR2I(int(c.x + (i - 1) * pitch), int(c.y + (j - 1) * pitch))
+                    # the via goes through to the other side: keep it off other nets' pads there
+                    if any(q.GetNetname() != net and q.IsOnLayer(ql) and
+                           q.GetEffectiveShape(ql).Collide(pos, mm(VIA_D / 2 + (HV_CLR if q.GetNetname() in HV else 0.2)))
+                           for q in pads for ql in (pcbnew.F_Cu, pcbnew.B_Cu)):
+                        continue
                     v = pcbnew.PCB_VIA(b)
                     v.SetPosition(pos)
                     v.SetWidth(mm(VIA_D))

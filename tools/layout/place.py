@@ -9,9 +9,9 @@ and keep the one with the shortest connections.
 import pcbnew, sys, math
 
 import os
-W, H = 31.0, float(os.environ.get('BH', '33'))
+W, H = 31.0, float(os.environ.get('BH', '36'))
 E = lambda k, d: float(os.environ.get(k, d))
-H1Y, C1X, C1Y, JPX, JPY, U6X, U6Y = E('H1Y', 16.0), E('C1X', 17.6), E('C1Y', 15.6), E('JPX', 20.0), E('JPY', H - 3.0), E('U6X', 17.5), E('U6Y', 20.4)
+H1Y, C1X, C1Y, JPX, JPY, U6X, U6Y = E('H1Y', 16.0), E('C1X', 15.75), E('C1Y', 15.9), E('JPX', 20.0), E('JPY', H - 3.0), E('U6X', 18.8), E('U6Y', 14.1)
 OX, OY = 100.0, 100.0
 # clear circle around each M3 hole on both sides, for a heat-set insert in a
 # printed base: 3 mm radius, enough for an M3 screw head or washer
@@ -19,57 +19,68 @@ KEEP_R = 3.0
 GAP = 0.15
 
 PLAN = {
-    # ---------------- top side: connectors, button, LEDs, bulk caps, jumpers, heater FET
+    # ---------------- top side: connectors, button, LEDs, bulk caps, jumpers, FETs
     'H1': (3.5, H1Y, 0, 'F', 1), 'H2': (27.5, H - 3.5, 0, 'F', 1),
     'J1': (8.4, 7.27, 180, 'F', 1),
     'J5': (25.0, 3.65, 180, 'F', 1),
-    'J2': (10.6, H - 11.1, 270, 'F', 1),
-    'SW1': (29.0, 13.4, 90, 'F', 1), 'JP3': (29.6, 18.3, 90, 'F', 1),
-    'LED1': (24.0, 11.0, 0, 'F', 1), 'LED2': (24.0, 13.0, 0, 'F', 1),
+    # J2 centred on the bottom edge, plug pointing down: pins at x 11.75-19.25, columns
+    # sensor / thermistor / fan / heater from left to right
+    'J2': (19.25, H - 11.1, 270, 'F', 1),
+    'SW1': (29.0, 13.4, 90, 'F', 1),
+    # BOOT pads above U6's SWCLK/BOOT0 pin (36), between the USB-C and C1, R4 below them
+    # (usb_pre.py routes SWCLK round to it)
+    'JP3': (21.2, U6Y - 2.2, 0, 'F', 1), 'R4': (21.85, U6Y + 0.1, 270, 'F', 1),
+    'LED1': (24.55, 11.0, 0, 'F', 1), 'LED2': (24.55, 13.0, 0, 'F', 1),
+    'R5': (26.7, 10.9, 90, 'F', 1), 'R6': (26.7, 13.5, 90, 'F', 1),   # LED resistors beside the LEDs
     'C1': (C1X, C1Y, 0, 'F', 1),
     'R11': (9.6, 12.95, 90, 'F', 1), 'JP1': (9.6, 16.6, 90, 'F', 1),
-    # heater FET on top next to J2 pin 5, drain tab toward the connector
-    # R13/R14 stand upright between U6's EP and corner vias, HEAT_PWM pads on top
-    'Q2': (15.1, H - 7.25, 180, 'F', 1), 'R13': (18.0, 23.4, 90, 'F', 1), 'R14': (19.2, 23.4, 90, 'F', 1),
-    'JP2': (JPX, JPY, 0, 'F', 1),
-    # moved up from the bottom so J2 and the parts round it can come up 3 mm
-    'C8': (24.8, 18.6, 0, 'F', 0),                                   # +3V3 bulk, over L1
-    'C2': (24.8, 21.2, 0, 'F', 1), 'C3': (24.8, 23.7, 0, 'F', 1),    # +24V bulk ceramics
-    'D6': (28.9, 22.9, 270, 'F', 1),                                 # TH_ADC clamp, right edge
-    'Q3': (14.65, H - 2.9, 90, 'F', 1),                              # fan switch, under Q2
-    'R17': (21.6, H - 6.1, 90, 'F', 0), 'R18': (22.8, H - 6.1, 90, 'F', 0),  # thermistor pull-ups by JP2
+    'C8': (24.8, 18.6, 0, 'F', 0),                                   # +3V3 bulk, over the buck
+    'C2': (24.8, 21.1, 0, 'F', 0),                                   # +24V ceramics by the FETs
+    'C3': (6.6, H - 7.2, 0, 'F', 0),                                 # second one by the fan FET
+    # heater FET right of J2's heater column, drain tab toward pin 5; gate parts beside it
+    'Q2': (24.2, H - 9.6, 180, 'F', 1),
+    'R13': (27.6, H - 10.0, 90, 'F', 0), 'R14': (27.6, H - 7.8, 90, 'F', 0),
+    # left of J2 (where it used to be): fan FET and gate parts, a thermistor pull-up, sensor parts
+    'R22': (1.4, 19.95, 0, 'F', 1), 'R23': (3.5, 19.95, 0, 'F', 1), 'C20': (5.6, 19.95, 0, 'F', 1),
+    'R15': (3.5, H - 12.6, 0, 'F', 0), 'R16': (3.5, H - 11.2, 0, 'F', 0),   # fan gate parts by Q3
+    'Q3': (7.2, H - 11.4, None, 'F', 0),
+    'R18': (2.0, H - 7.4, 90, 'F', 0),
+    'JP2': (4.8, H - 3.0, 0, 'F', 0),
+    # channel above J2's top pin row: fan fuse feeding pin 2 (reachable only from above) and
+    # the TH_ADC clamp over the thermistor filter
+    'F2': (17.4, H - 14.5, 0, 'F', 1), 'D6': (11.8, H - 14.5, None, 'F', 1),
     # ---------------- bottom: power input under J1
     'Q1': (9.7, 3.9, 0, 'B', 1), 'F1': (14.7, 4.6, 90, 'B', 1), 'D1': (18.0, 4.6, 90, 'B', 1),
     'D2': (3.45, 2.75, 0, 'B', 1), 'R1': (1.5, 6.0, 90, 'B', 1),
     # CAN: ESD, transceiver; termination on top
-    'D4': (9.0, 14.3, 90, 'B', 1), 'U3': (10.0, 18.2, 0, 'B', 1),   # up 0.7: J2's pins are below
-    'C16': (6.95, 18.2, 270, 'B', 1),   # +3V3 pad up, beside U3 pin 3
+    # U3 turned so TXD/RXD face U6 and CANH/CANL face D4; its decoupling cap just below it
+    'D4': (9.0, 14.3, 90, 'B', 1), 'U3': (9.05, 18.2, 180, 'B', 1),   # room for a +3V3 via at pin 3
+    'C16': (9.9, 20.7, 0, 'B', 0),
     # USB under J5
     'U5': (25.0, 7.2, 90, 'B', 1), 'C17': (25.0, 3.0, 0, 'B', 1),
-    'R20': (27.9, 4.5, 90, 'B', 1), 'R21': (22.1, 4.5, 90, 'B', 1), 'D3': (25.4, 11.0, 0, 'B', 1),
-    # buck between the CAN block and L1
-    'D7': (20.6, 9.4, 0, 'B', 1), 'C4': (20.75, 12.3, 0, 'B', 1), 'C5': (17.5, 9.4, 90, 'B', 1),
-    'U1': (16.2, 12.9, 0, 'B', 1), 'C6': (13.2, 14.25, 90, 'B', 1),
-    'R2': (12.75, 11.25, 0, 'B', 1), 'R3': (12.75, 12.5, 0, 'B', 1),
-    'D9': (20.6, 14.85, 0, 'B', 1), 'L1': (25.2, 15.9, 0, 'B', 1),
-    # LEDs, boot
-    'R5': (28.3, 10.6, 90, 'B', 1), 'R6': (28.3, 15.15, 90, 'B', 1), 'R4': (28.6, 18.3, 90, 'B', 1),
-    # MCU; crystal under pins 8/9, supply and VREF caps along its lower side
+    'R20': (27.9, 4.5, 90, 'B', 1), 'R21': (22.1, 4.5, 90, 'B', 1),
+    'D3': (25.4, 11.0, 180, 'B', 1),                                 # VIN_LOGIC pad right, toward D7
+    # MCU in the centre above J2's pins; crystal, supply and VREF caps between it and the pins
     'U6': (U6X, U6Y, 90, 'B', 1),
     # corner cluster: corner_pre.py sets the final positions and rotations
     'Y1': (U6X - 2.3, U6Y + 6.8, 270, 'B', 1), 'C9': (U6X + 0.1, U6Y + 5.83, 90, 'B', 1),
     'C11': (U6X + 1.12, U6Y + 5.88, 90, 'B', 1), 'C12': (U6X + 2.14, U6Y + 5.88, 90, 'B', 1),
     'FB1': (U6X + 3.16, U6Y + 5.88, 90, 'B', 1), 'C13': (U6X + 0.1, U6Y + 8.2, 90, 'B', 1),
-    'C10': (U6X + 2.6, U6Y + 9.25, 0, 'B', 1), 'C14': (U6X - 4.7, U6Y + 7.8, 90, 'B', 1),
-    'C15': (U6X - 5.15, U6Y + 5.0, 90, 'B', 1),
-    # thermistor filter under the crystal; fan switch and sensor parts round J2's pins
-    'R19': (16.0, 30.6, 90, 'B', 1), 'C19': (17.2, 30.6, 90, 'B', 1),   # th_pre's lane ends here
-    'R15': (10.3, H - 6.3, 0, 'B', 0), 'R16': (8.6, H - 1.4, 0, 'B', 0),
-    'F2': (5.85, H - 4.9, 0, 'B', 1), 'D5': (1.5, H - 4.8, 90, 'B', 1),
-    # sensor pull-up, series resistor and filter in a row on top, between H1's keep-out and
-    # J2's courtyard; the bottom strip above J2's pins is left for FAN_P
-    'R22': (1.4, 19.95, 0, 'F', 1), 'R23': (3.5, 19.95, 0, 'F', 1), 'C20': (5.6, 19.95, 0, 'F', 1),
+    'C14': (U6X - 4.7, U6Y + 7.8, 90, 'B', 1), 'C15': (U6X - 5.15, U6Y + 5.0, 90, 'B', 1),
+    # buck in the right-hand strip, laid out for buck_pre.py's hand-routed power links:
+    # D7 cathode right, U1 with BOOT/SW on the left and VIN along the bottom, C6 across
+    # BOOT-SW, C5 under the VIN pins, C4 to the right, L1 SW pad left, D9 below L1 by H2
+    'R2': (25.9, 13.3, 0, 'B', 1), 'R3': (25.9, 14.4, 180, 'B', 1),   # FB pads right, under each other
+    'D7': (26.4, 16.45, 180, 'B', 1),
+    'U1': (25.9, 20.3, -90, 'B', 1), 'C6': (23.6, 20.3, 270, 'B', 1),
+    'C4': (29.3, 20.9, 90, 'B', 1), 'C5': (26.4, 23.2, 180, 'B', 1),
+    'L1': (25.6, H - 9.2, 0, 'B', 1), 'D9': (23.0, H - 4.5, 270, 'B', 1),
+    # thermistor filter between U3 and J2 pin 3; fan clamp under the housing by pin 6
+    'R19': (12.65, H - 13.4, 90, 'B', 1), 'C19': (11.0, H - 13.6, 180, 'B', 1), 'R17': (9.4, H - 12.4, 0, 'B', 0),
+    'D5': (16.75, H - 5.4, None, 'B', 0),
+    'C10': (4.0, H - 5.0, 0, 'B', 0),                                # +3V3 bulk
 }
+
 PIN_TARGET = {}
 ESCAPE = {'U6': (1.2, 0.4, 0.6, 0.3)}
 PIN_OUT = 3.0   # mm outward from the owner's centre past the pin

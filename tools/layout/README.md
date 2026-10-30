@@ -1,6 +1,6 @@
 # Layout scripts
 
-These scripts placed and routed `hardware/toolhead.kicad_pcb` (31 × 33 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
+These scripts placed and routed `hardware/toolhead.kicad_pcb` (31 × 36 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
 
 ```
 tools/layout/run_layout.sh /path/to/workdir
@@ -14,7 +14,7 @@ The layout isn't finished at that point. The board is always fabricated as a 3 �
 2. `tools/make_panel.sh`, which rebuilds `hardware/panel/` and `gerber/panel/`. It must report 9 boards and 567 placements, with panel DRC at 0 errors and 0 unconnected.
 3. Committing the board, `gerber/`, `hardware/panel/` and `gerber/panel/` together.
 
-Keep the four tab windows clear of parts at the board edges (top/bottom x 15.6–17.9, left/right y 20.0–22.5), or move the tabs in `tools/panel_tabs.py`.
+Keep the tab windows clear of parts at the side edges (y 9.0–10.6 and 23.2–29.5, left and right; there are no top/bottom tabs), or move the tabs in `tools/panel_tabs.py`.
 
 ## Requirements
 
@@ -22,7 +22,9 @@ Keep the four tab windows clear of parts at the board edges (top/bottom x 15.6�
 - **Freerouting 1.9.0:** set `FREEROUTING_JAR` to the jar. It isn't in the repo. 2.x crashed or hung on this board.
 - **Java 21 or newer:** set `JAVA` if `java` isn't on the path. Freerouting 1.9.0 opens its window while it routes.
 
-Other settings: `BH` sets the board height (default 33). `MAZE_ITER` sets the maze clean-up passes (default 6). `FR_PASSES` and `FR_TIMEOUT` control Freerouting.
+Other settings: `BH` sets the board height (default 36), `C1Y`, `U6X` and `U6Y` move C1 and the MCU. `MAZE_ITER` sets the maze clean-up passes (default 6). `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`.
+
+Freerouting's result depends on the pass count, so the committed board came from routing the same pre-route board several times: `PRE_ONLY=1 run_layout.sh dir`, then Freerouting, `finish3.py`, `power_pre.py --post` and `ripup_loop.sh` on copies with `FR_PASSES` 25 to 55, keeping a copy that ends with 0 unconnected and the shortest track. A single `run_layout.sh` run can end with one or two connections open; when the same one stays open across pass counts, it needs a pre-route rather than more maze passes.
 
 ## Steps
 
@@ -30,13 +32,14 @@ Other settings: `BH` sets the board height (default 33). `MAZE_ITER` sets the ma
 |---|---|
 | `strip.py` | Copies the board without tracks, vias and zones, and resets pad zone connections |
 | `place.py` | Places parts from `PLAN` (x, y, rotation, side, fixed), draws the outline and hole keep-outs, and pushes movable parts apart until no courtyards overlap |
-| `corner_pre.py` | Hand layout of the U6 pin 4–10 corner: crystal, load caps, VREF, NRST |
-| `misc_pre.py` | Q2 source bar; JP3 BOM flags |
-| `usb_pre.py` | USB-C data pins joined on F.Cu, one via per pair down to the USBLC6 (U5) |
-| `th_pre.py th` / `th_pre.py pwm` | Thermistor lane (TH_ADC) and HEAT_PWM |
-| `left_pre.py` | Left-side pre-routes: +3V3 trunk, SENS, SENS_IN, FAN_P, NRST, SWCLK |
+| `sync_nets.py` | Re-assigns pad nets from the schematic netlist, so a pin change in `design.py` reaches the stripped board |
+| `corner_pre.py` | Hand layout of the U6 pin 4–10 corner: crystal, load caps, VREF, NRST; VREFP's exit round FB1 and FB1's +3V3 via |
+| `misc_pre.py` | Q2 source bar, solid to the GND pours; JP3 BOM flags |
+| `usb_pre.py` | USB-C data pins joined on F.Cu, one via per pair down to the USBLC6 (U5), then D+/D− on F.Cu to vias in front of U6 pins 34/33; SWCLK round JP3 to R4; the A9 VBUS via; CC1/CC2 vias above their pads; the F.Cu keep-out under the receptacle body |
+| `left_pre.py` | Lanes from U6's left side on B.Cu: TH_ADC to R19/C19/D6, SENS_IN to C20, CAN_TX/RX to U3; the CAN_H/CAN_L escape from U3 and U3's GND ties and +3V3 feed; FAN_PWM across on F.Cu to R15/R16 |
 | `sig_fanout.py` | Escape vias for the listed U6 pins |
-| `buck_pre.py` | Buck power links on B.Cu: VIN_LOGIC from D3 to C4, BUCK_SW from U1 through D9 to L1 |
+| `heat_pre.py` | HEAT_PWM from its escape via under SW1 and down the right edge to R13/R14; R14's GND tied to Q2's source and Q2 pin 1's via; NRST from SW1 round that run to C15 |
+| `buck_pre.py` | Buck links on B.Cu: VIN_LOGIC from D7 to U1/C4/C5, BUCK_SW from U1 to L1 and D9, BOOT, and FB up to R3/R2 |
 | `planes_fanout.py` | In1 GND and In2 +24V planes, with a via from every plane pad |
 | `netclasses.py` | Power, Fan, Supply and USB net classes in the project |
 | `power_pre.py` | +24V pour and via array on Q1, with room reserved for the VIN pours (`--post` fills them after routing) |
@@ -48,10 +51,6 @@ Other settings: `BH` sets the board height (default 33). `MAZE_ITER` sets the ma
 
 ## Done by hand on the committed board
 
-These changes came after the scripted run. Redo them, or check they're still needed, on a new run:
-
-- Q2 source pads 1–3 have a solid zone connection. A second GND via sits at (16.3, 27.75), joined by a 0.4 mm F.Cu track from (16.6, 26.72).
-- FAN_PWM: `finalize.py` removes U6 pin 47's escape via near (21.94, 22.65) as dangling, which leaves FAN_PWM open (the run ends with 1 unconnected item). On the committed board a short B.Cu link to (22.09, 22.9) replaced the via. On a new run, check the DRC for this item and link it however the router left it.
-- CAN H/L labels on F.Silkscreen at (5.55, 7.65) and (5.55, 5.1).
+Nothing beyond the scripted run: the committed board is a run's `board.kicad_pcb` (31 × 36, `FR_PASSES` 55) with Q2's source pads set to a solid zone connection, which `misc_pre.py` now does itself. The CAN H/L labels on F.Silkscreen at (5.55, 7.65) and (5.55, 5.1) come through from the stripped board.
 
 Coordinates are in mm from the board's top-left corner, seen from the top. KiCad places the board at an offset of (100, 100).
