@@ -54,7 +54,7 @@ Crystal: an 8 MHz HSE crystal (±20 ppm or better) on PF0/PF1 is required for re
 
 ## Microcontroller and pin assignment
 
-The MCU is an STM32G0B1CE (ideally in the 105 °C grade, order code ending 7, or 3 for 125 °C, if stocked; the 6 grade is only rated to 85 °C ambient): a Cortex-M0+ at 64 MHz with 512 KB flash (the 128 KB CB and 256 KB CC are drop-in alternatives with the same pinout; Klipper and Katapult need well under 128 KB) in UFQFPN-48 (7 × 7 mm; exposed pad to GND with a 3 × 3 via grid), chosen because it has both FD-CAN and crystal-less USB and is fully supported by Klipper and Katapult.
+The MCU is an STM32G0B1CB (ideally in the 105 °C grade, order code ending 7, or 3 for 125 °C, if stocked; the 6 grade is only rated to 85 °C ambient): a Cortex-M0+ at 64 MHz with 128 KB flash, plenty for Klipper and Katapult, which together need well under 64 KB (the 256 KB CC and 512 KB CE are drop-in alternatives with the same pinout) in UFQFPN-48 (7 × 7 mm; exposed pad to GND with a 3 × 3 via grid), chosen because it has both FD-CAN and crystal-less USB and is fully supported by Klipper and Katapult.
 
 | Function | MCU pin | Peripheral | Notes |
 | --- | --- | --- | --- |
@@ -147,7 +147,7 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | U1 | TI LMR16006XDDC 60 V buck, set to 3.3 V (C87080) | SOT-23-6 | 1 | 4–60 V in; D9 catch diode |
 | U3 | TI TCAN3414DRBR 3.3 V CAN FD transceiver, ±58 V bus fault (C31542495) | VSON-8 3 × 3 | 1 | Pin 5 SHDN left open (internal pull-down); exposed pad to GND |
 | U5 | ST USBLC6-2SC6 USB ESD (C7519) | SOT-23-6 | 1 | |
-| U6 | STM32G0B1CEU6 MCU, 512 KB flash (C2829190; UFQFPN-48 is 85 °C, no 105 °C grade stocked) | UFQFPN-48 7 × 7 | 1 | Chosen over the 128 KB CBU6 (C5270156; only 18 at JLCPCB in October 2026), same pinout; the 256 KB CCU6 also fits |
+| U6 | STM32G0B1CBU6 MCU, 128 KB flash (C5270156; UFQFPN-48 is 85 °C, no 105 °C grade stocked) | UFQFPN-48 7 × 7 | 1 | The 512 KB CEU6 (C2829190) and 256 KB CCU6 (C2829191) are drop-in alternatives, but JLCPCB had none of either in November 2026 (17 CBU6) |
 | Q1 | Vishay SQJ461EP-T1_GE3 60 V P-MOSFET (C3279500) | PowerPAK SO-8 | 1 | Reverse polarity |
 | Q2 | Alpha & Omega AON7264E 60 V N-MOSFET, 9.5 mΩ max at 10 V (C431191) | DFN 3 × 3 | 1 | Heater; driven by U7 at about 12 V; project footprint |
 | U7 | TI UCC27517DBVR 4 A low-side gate driver (C99395) | SOT-23-5 | 1 | Heater gate driver |
