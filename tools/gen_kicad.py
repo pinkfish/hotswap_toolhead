@@ -53,6 +53,7 @@ LAYOUT_NAMES = {
     id(design.FET_LAYOUT): "MOSFET_8PIN",
     id(design.SOT3_LAYOUT): "SOT23_3",
     id(design.SOT23FET_LAYOUT): "NMOS_SOT23",
+    id(design.GATEDRV_LAYOUT): "GATE_DRIVER_SOT23_5",
     id(design.XTAL4_LAYOUT): "XTAL_4PIN",
     id(design.BAT54S_LAYOUT): "BAT54S",
     id(design.XT30_LAYOUT): "XT30_2P2",
@@ -315,8 +316,8 @@ def build_pcb():
 
 # Floorplan (board-relative mm, origin top-left; rot in degrees; side F/B).
 # Taken from the routed board: connectors (J2 centred on the bottom edge), RESET, the BOOT
-# pads and their resistor R4, LEDs and R5/R6, C1, JP1/JP2, the heater FET and its gate
-# resistors, the fan FET Q3 and R15/R16, the fan PTC F2, the 24 V and 3.3 V bulk ceramics
+# pads and their resistor R4, LEDs and R5/R6, C1, JP1/JP2, the heater FET, its gate driver U7 and
+# pull-down R14, the fan FET Q3 and R15/R16, the fan PTC F2, the 24 V and 3.3 V bulk ceramics
 # (C2, C3, C8), the TH_ADC clamp D6, R11, R18, R22, R23 and C20 on top; everything else on
 # the bottom.
 FLOORPLAN = {
@@ -326,9 +327,10 @@ FLOORPLAN = {
     "C11": (19.92, 19.98, -90, "B"), "C12": (20.94, 19.98, -90, "B"), "C13": (18.9, 22.3, -90, "B"),
     "C14": (14.1, 21.9, 90, "B"), "C15": (13.95, 19.1, -90, "B"), "C16": (9.9, 20.7, 0, "B"),
     "C17": (25, 3, 0, "B"), "C19": (11, 22.4, 180, "B"), "C20": (5.6, 19.95, 0, "F"),
+    "C21": (29.3, 27.4, 180, "B"),
     "D1": (18, 4.6, 90, "B"), "D2": (3.45, 2.75, 0, "B"), "D3": (25.4, 11, 180, "B"),
     "D4": (9, 14.3, 90, "B"), "D5": (16.75, 31.1, 90, "B"), "D6": (11.8, 21.5, 0, "F"),
-    "D7": (26.4, 16.45, 180, "B"), "D9": (23, 31.5, -90, "B"), "F1": (14.7, 4.6, 90, "B"),
+    "D7": (26.4, 16.45, 180, "B"), "D9": (23, 31.5, -90, "B"), "D10": (29.45, 26.05, 180, "B"), "F1": (14.7, 4.6, 90, "B"),
     "F2": (17.4, 21.5, 0, "F"), "FB1": (21.96, 19.98, 90, "B"), "J1": (8.4, 7.27, 180, "F"),
     "J2": (19.25, 24.9, -90, "F"), "J5": (25, 3.65, 180, "F"), "JP1": (9.6, 16.6, 90, "F"),
     "JP2": (4.8, 33, 0, "F"), "JP3": (21.2, 11.9, 0, "F"), "L1": (25.6, 26.8, 0, "B"),
@@ -336,12 +338,12 @@ FLOORPLAN = {
     "Q2": (24.2, 26.4, 180, "F"), "Q3": (7.2, 24.6, 0, "F"), "R1": (1.5, 6, 90, "B"),
     "R2": (25.9, 13.3, 0, "B"), "R3": (25.9, 14.4, 180, "B"), "R4": (21.85, 14.2, -90, "F"),
     "R5": (26.7, 10.9, 90, "F"), "R6": (26.7, 13.5, 90, "F"), "R11": (9.6, 12.95, 90, "F"),
-    "R13": (27.6, 26, 90, "F"), "R14": (27.6, 28.2, 90, "F"), "R15": (3.5, 23.4, 0, "F"),
+    "R13": (30, 24.2, -90, "B"), "R14": (27.67, 20.5, 90, "F"), "R15": (3.5, 23.4, 0, "F"),
     "R16": (3.5, 24.8, 0, "F"), "R17": (9.4, 23.6, 0, "B"), "R18": (2, 28.6, 90, "F"),
     "R19": (12.65, 22.6, 90, "B"), "R20": (27.9, 4.5, 90, "B"), "R21": (22.1, 4.5, 90, "B"),
     "R22": (1.4, 19.95, 0, "F"), "R23": (3.5, 19.95, 0, "F"), "SW1": (29, 13.4, 90, "F"),
     "U1": (25.9, 20.3, -90, "B"), "U3": (9.05, 18.2, 180, "B"), "U5": (25, 7.2, 90, "B"),
-    "U6": (18.8, 14.1, 90, "B"), "Y1": (16.5, 20.9, -90, "B"),
+    "U6": (18.8, 14.1, 90, "B"), "U7": (28.2, 26.56, 90, "F"), "Y1": (16.5, 20.9, -90, "B"),
 }
 
 

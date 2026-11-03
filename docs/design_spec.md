@@ -18,7 +18,7 @@ Design targets, chosen where the request left them open:
 | USB | USB 2.0 Full Speed on a USB-C receptacle, device mode; powers all logic on its own for programming, no 24 V needed | Flashing (DFU), USB-serial debug, or USB-only operation |
 | Board fuse | 6 A on the 24 V input | Protects the harness if the heater FET fails short |
 
-The heater output is safe-by-default: the FET gate is held off by pull-downs during reset, boot and firmware crashes.
+The heater output is safe-by-default: the gate driver holds the FET off whenever its input floats or its supply is low, and a pull-down holds that input low during reset, boot and firmware crashes.
 
 ## System architecture
 
@@ -28,7 +28,7 @@ The 24 V rail goes straight to the heater and fan through the protection stage; 
 
 ## Power input and regulation
 
-24 V enters through a fuse, a TVS and a reverse-polarity P-FET to become the load rail for the heater and fan. One buck makes 3.3 V for all logic; there is no 5 V rail and no separate gate-drive supply.
+24 V enters through a fuse, a TVS and a reverse-polarity P-FET to become the load rail for the heater and fan. One buck makes 3.3 V for all logic; there is no 5 V rail. A 12 V zener rail taken off the buck input powers only the heater's gate driver.
 
 1. **Fuse (F1):** 6 A 1206 one-time SMD fuse (BSMD1206C-1600T, rated to 63 V DC), the largest 1206 fuse JLCPCB stocks. A 72 W heater plus fan draws about 3.6 A, which would run a 5 A fuse near its derating limit in a warm toolhead. Even after a fuse's typical 20–25% derating at 70 °C, 6 A stays above the 3.6 A load.
 2. **TVS (D1):** SMF33CA (bidirectional, 200 W, SOD-123FL) from +24V to GND at the input. Clamps hot-plug and supply spikes below the 60 V rating of Q1, the output FETs and the buck. Because it's bidirectional it stays off with a reversed supply, so Q1 handles reverse polarity without blowing the fuse. Its 33 V standoff keeps it quiet with the supply set anywhere from 24 to 30 V. The 400 W SMA part (SMAJ33CA) fits the same circuit if a harsher supply calls for it, at about twice the area.
@@ -62,11 +62,11 @@ The MCU is an STM32G0B1CE (ideally in the 105 °C grade, order code ending 7, or
 | CAN TX | PB1 | FDCAN2_TX | To transceiver TXD |
 | USB D− | PA11 | USB_DM | Via USBLC6 to J5 |
 | USB D+ | PA12 | USB_DP | Via USBLC6 to J5 |
-| Heater PWM | PB9 | GPIO / TIM17_CH1 | To Q2 gate via 10 kΩ; 10 kΩ pull-down at the pin. Pin 48, the corner next to Q2's gate network (Klipper drives heaters with software PWM, so any GPIO would do) |
+| Heater PWM | PB9 | GPIO / TIM17_CH1 | To the gate driver's IN+ (U7); 10 kΩ pull-down (R14). Pin 48, the corner nearest the heater driver (Klipper drives heaters with software PWM, so any GPIO would do) |
 | Fan PWM | PA6 | TIM16_CH1 | To Q3 gate via 1 kΩ; 10 kΩ pull-down at the pin |
 | Thermistor | PA2 | ADC1_IN2 | RC-filtered, clamped |
 | Switch sensor | PA3 | GPIO | 10 kΩ pull-up to 3.3 V, 1 kΩ + 100 nF filter; switch closes to GND |
-| Status LED | PB5 | GPIO | Blue LED, 1 kΩ to GND |
+| Status LED | PB5 | GPIO | Blue LED, 100 Ω to GND |
 | SWDIO | PA13 | SWD | Not broken out (no SWD header) |
 | SWCLK / BOOT0 | PA14 | SWD / BOOT0 | BOOT pads (JP3) to 3.3 V through 1 kΩ |
 | HSE | PF0 / PF1 | OSC_IN / OSC_OUT | 8 MHz, 20 pF-load crystal with 2 × 33 pF C0G load caps (adjust for board stray capacitance; check oscillator gain margin per ST AN2867) |
@@ -76,10 +76,11 @@ Decoupling: 100 nF on the single VDD/VDDA pin plus one 10 µF bulk on the 3.3 V 
 
 ## Heater control output
 
-The heater is switched low-side by a 60 V N-MOSFET driven straight from an MCU pin. The FET is chosen to be fully on at the MCU's 3.3 V, so no gate driver is needed.
+The heater is switched low-side by a 60 V N-MOSFET with a small gate driver between it and the MCU. JLCPCB stocks no 40–60 V FET whose on-resistance is guaranteed below a 4.5 V gate, and a worst-case part (2.4 V threshold) at the MCU's 3.3 V sits near the knee of its curve at 2.5 A. So the gate is driven at about 12 V instead, where the FET's 10 V rating applies.
 
-- **Heater FET (Q2):** Alpha & Omega AON7264E (C431191): 60 V, DFN 3 × 3 mm, 9.5 mΩ max at V_GS = 10 V and 13.3 mΩ max at 4.5 V, V_GS(th) 1.4–2.4 V. No 60 V part in a 3 × 3 mm package with a guaranteed 2.5 V rating is stocked at JLCPCB, so its on-resistance at the MCU's 3.3 V is typical rather than guaranteed: expect roughly 15–25 mΩ, or about 0.15–0.25 W at 2.5 A (60 W). Check it on the bench: with the heater on at 2.5 A, the drain–source drop should be under 75 mV (30 mΩ). If a board ever needs more than about 72 W, add a 5 V gate drive rather than relying on the 3.3 V pin. See Thermal.
-- **Gate network:** 10 kΩ series resistor from PB9 to the gate, and a 10 kΩ pull-down from PB9 to GND on the MCU side of it. The pull-down holds the heater off while the MCU is in reset or unprogrammed; putting it on the MCU side means the gate still sees the full 3.3 V rather than a divided voltage. The 10 kΩ series resistor also limits the current into PB9 to a safe level if the FET ever fails with its gate shorted to 24 V. Switching takes about 10–20 µs, which is negligible at heater PWM rates.
+- **Heater FET (Q2):** Alpha & Omega AON7264E (C431191): 60 V, DFN 3 × 3 mm, 9.5 mΩ max at V_GS = 10 V (about 13 mΩ hot), V_GS(th) 1.4–2.4 V. At 2.5 A (60 W) that is under 0.1 W, and about 0.12 W at 3 A (72 W). See Thermal.
+- **Gate driver (U7):** TI UCC27517DBVR (C99395, SOT-23-5, 4 A), non-inverting: PB9 to IN+ (pin 3), IN− (pin 4) to GND, OUT (pin 5) straight to Q2's gate. Its input thresholds (2.4 V high, 1.0 V low max) are fixed whatever the supply, so 3.3 V logic drives it directly. Undervoltage lockout (4.2 V) and the internal pull-down on IN+ hold OUT low while the rail is coming up or PB9 floats, and R14 (10 kΩ from PB9 to GND) keeps PB9 low through reset and before the firmware runs.
+- **12 V gate-drive rail (GATE_12V):** R13 (10 kΩ) from VIN_LOGIC (the buck input, 24 V less D7's drop), clamped by a 12 V zener D10 (Nexperia BZX585-C12, C455018, SOD-523) with 1 µF (C21) at U7's VDD. U7 draws at most 0.16 mA static, so the rail holds about 11.5–12 V from 24–30 V (1.1–1.7 mA through R13, 32 mW at 30 V) and about 10 V even from a 12 V supply. On USB power alone VIN_LOGIC is about 4.4 V, so U7 stays at or below its lockout and the heater stays off, which it has to anyway with no 24 V. Each switching edge takes Q2's ~20 nC gate charge from C21 (about 20 mV of droop), which is nothing at Klipper's 10 Hz heater PWM.
 - **Output:** heater connects between +24V (fused) and the FET drain.
 - **Firmware safety:** Klipper's `max_power`, `verify_heater` and thermal-runaway checks are the primary protection. For an unattended machine, add a thermal fuse in the heater block itself.
 
@@ -148,13 +149,15 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | U5 | ST USBLC6-2SC6 USB ESD (C7519) | SOT-23-6 | 1 | |
 | U6 | STM32G0B1CEU6 MCU, 512 KB flash (C2829190; UFQFPN-48 is 85 °C, no 105 °C grade stocked) | UFQFPN-48 7 × 7 | 1 | Chosen over the 128 KB CBU6 (C5270156; only 18 at JLCPCB in October 2026), same pinout; the 256 KB CCU6 also fits |
 | Q1 | Vishay SQJ461EP-T1_GE3 60 V P-MOSFET (C3279500) | PowerPAK SO-8 | 1 | Reverse polarity |
-| Q2 | Alpha & Omega AON7264E 60 V N-MOSFET, 13.3 mΩ max at 4.5 V (C431191) | DFN 3 × 3 | 1 | Heater; driven directly by the MCU; project footprint |
+| Q2 | Alpha & Omega AON7264E 60 V N-MOSFET, 9.5 mΩ max at 10 V (C431191) | DFN 3 × 3 | 1 | Heater; driven by U7 at about 12 V; project footprint |
+| U7 | TI UCC27517DBVR 4 A low-side gate driver (C99395) | SOT-23-5 | 1 | Heater gate driver |
 | Q3 | Winsok WST6066A 60 V N-MOSFET, 120 mΩ at 2.5 V, 2.1 A (C148352) | SOT-23 | 1 | Fan |
 | Y1 | 8 MHz crystal, ±10 ppm, 20 pF load (YXC X32258MSB4SI) | 3225 4-pin | 1 | LCSC C2682774 (not C9002, which is the 12 MHz X322512MSB4SI); 2 × 33 pF C0G 0402 load caps |
 | F1 | 6 A one-time fuse, BSMD1206C-1600T (C49328461) | 1206 | 1 | Main 24 V input |
 | F2 | PTC 0.75 A hold, 33 V, JK-mSMD075-33 (C369169) | 1812 | 1 | Fan +24V |
 | D1 | SMF33CA bidirectional TVS, 200 W (C19077520) | SOD-123FL | 1 | Stays off with a reversed supply |
 | D2 | MMSZ5242B 12 V Zener (C19077426) | SOD-123 | 1 | Q1 gate clamp |
+| D10 | Nexperia BZX585-C12 12 V Zener (C455018) | SOD-523 | 1 | Heater gate-drive rail |
 | D3, D5, D7, D9 | DSK110 Schottky 100 V 1 A (C22466354) | SOD-123FL | 4 | USB OR, 24 V OR, fan flyback, buck catch diode |
 | D4 | onsemi NUP2105LT1G CAN ESD (C14486) | SOT-23 | 1 | |
 | D6 | BAT54S dual Schottky (C7420333) | SOT-23 | 1 | Sensor clamp |
@@ -166,11 +169,11 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | R | 100 Ω (C25076) | 0402 | 1 | Status LED |
 | R | 4.12 kΩ 0.1% 25 ppm, Yageo RT0402BRD074K12L (C852812) | 0402 | 1 | PT1000 option, switched by JP2 |
 | R | 4.7 kΩ 0.1% 25 ppm, Yageo RT0402BRD074K7L (C281778) | 0402 | 1 | Thermistor pull-up |
-| R | 10 kΩ | 0402 | 5 | Heater gate series, pin pull-downs ×2, Q1 gate, buck FB bottom |
+| R | 10 kΩ | 0402 | 5 | Gate-drive rail feed (R13), pin pull-downs ×2, Q1 gate, buck FB bottom |
 | R | 33 kΩ 1% (C25779) | 0402 | 1 | Buck FB top (R2) |
 | C | 47 µF 50 V aluminium electrolytic, 105 °C, Lelon RVT1H470M0607 (C72523) | 6.3 × 7.7 mm SMD | 1 | 24 V bulk; not polymer |
 | C | 10 µF 50 V X5R (JLCPCB basic C13585) | 1206 | 2 | 24 V ceramic |
-| C | 22 µF 25 V X5R 1206, 10 µF 25 V X5R 0805, 1 µF 10 V X5R 0402, 100 nF 16 V X7R 0402 (50 V 0603 for C5), 33 pF C0G 0402 | 0402–1206 | ~13 | JLCPCB basic: C12891, C15850, C52923, C1525, C14663 |
+| C | 22 µF 25 V X5R 1206, 10 µF 25 V X5R 0805, 1 µF 25 V X5R 0402, 100 nF 16 V X7R 0402 (50 V 0603 for C5), 33 pF C0G 0402 | 0402–1206 | ~14 | JLCPCB basic: C12891, C15850, C52923, C1525, C14663 |
 | J1 | Amass XT30PW(2+2)-M.G.B | Through-hole, right-angle | 1 | 24 V + CAN; LCSC C19268030; footprint from SnapEDA in the project library |
 | J2 | Molex Nano-Fit 105314-1108, 2×4 right-angle (C841208) | Through-hole | 1 | Heater, fan, thermistor, switch sensor |
 | J5 | USB-C 16-pin, HRO TYPE-C-31-M-12 (C165948) | 0.5 mm | 1 | USB |
@@ -191,18 +194,18 @@ The XT30 housing keys the power polarity, but which small pin carries CAN_H and 
 | Status LED resistor | 100 Ω 1% 0402 | C25076 |
 | 1–22 µF ceramics | X5R: 1 µF 10 V 0402, 10 µF 25 V, 10 µF 50 V, 22 µF 25 V | C52923, C15850, C13585, C12891 |
 
-These parts stay extended because no basic part meets the spec: the MCU (no basic STM32 has both FD-CAN and a USB bootloader), the 60 V buck, the ±58 V CAN transceiver, the ferrite bead (basic ones are 0603), the LEDs, the diodes, the 60 V 2.5 V-rated FETs, the reverse-polarity FET, both fuses, the TVS, the 0.1% thermistor resistors and all connectors. The crystal and X5R ceramics are rated to 85 °C, which leaves about 35 °C of margin at the expected 50 °C ambient.
+These parts stay extended because no basic part meets the spec: the MCU (no basic STM32 has both FD-CAN and a USB bootloader), the 60 V buck, the ±58 V CAN transceiver, the ferrite bead (basic ones are 0603), the LEDs, the diodes, the gate driver, the 60 V FETs, the reverse-polarity FET, both fuses, the TVS, the 0.1% thermistor resistors and all connectors. The crystal and X5R ceramics are rated to 85 °C, which leaves about 35 °C of margin at the expected 50 °C ambient.
 
 ## PCB layout guidance
 
 Target a 31 × 36 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (connectors, the FETs, the bulk capacitors, GND pour), In1 solid GND, In2 solid +24V, bottom (the other ICs and passives, GND pour). Every SMD GND and +24V pad gets its own via to its plane; +3.3 V is routed as traces. The +24V plane carries the 3.6 A input current, which 1 oz traces of a routable width cannot.
 
-**Floorplan (top view):** connectors, RESET, the BOOT pads with their 1 kΩ (R4) and the CAN-termination pads with R11, LEDs with R5/R6, the bulk capacitors (C1, the 24 V ceramics C2/C3 and the 3.3 V C8), JP2, the heater FET Q2 with its gate resistors R13/R14, the fan FET Q3 with R15/R16, the fan PTC F2, the TH_ADC clamp D6, the thermistor pull-up R18 and the switch-sensor parts R22, R23 and C20 on the top side; everything else on the bottom.
+**Floorplan (top view):** connectors, RESET, the BOOT pads with their 1 kΩ (R4) and the CAN-termination pads with R11, LEDs with R5/R6, the bulk capacitors (C1, the 24 V ceramics C2/C3 and the 3.3 V C8), JP2, the heater FET Q2 with its gate driver U7, the PB9 pull-down R14, the fan FET Q3 with R15/R16, the fan PTC F2, the TH_ADC clamp D6, the thermistor pull-up R18 and the switch-sensor parts R22, R23 and C20 on the top side; everything else on the bottom.
 
 - **Mounting holes:** two M3 holes for 5 mm heat-set inserts, each with a 3 mm-radius keep-out on both sides: H1 on the left edge, 3.5 mm in and 16 mm down from the top; H2 in the bottom-right corner, 3.5 mm in from the right and bottom edges. They are about 29.1 mm apart.
 - **Top end:** J1 (XT30 2+2, right-angle, mouth up, front about 2.8 mm past the edge) and J5 (USB-C, shell flush). Q1, F1 and D1 sit underneath between J1's pins; U5 and the CC resistors between J5's shield pins. U3 (CAN) is on the left, below J1 and between H1 and the MCU, with the CAN-termination pads (JP1) over it.
 - **Right edge:** SW1 (RESET, side-push), below J5 and the LEDs.
-- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, centred on the bottom edge and pointing down, so a cable leaves the toolhead straight down the middle. F2 and the D6 clamp sit on top in the channel between J2 and the MCU; D5 is under J2. Q2 sits on top to the right of J2's heater pins, over the buck inductor L1, with R13/R14 beside it; Q3 and the fan's gate resistors are to the left of J2. R22, R23 and C20 sit in a row on top between H1's keep-out and J2.
+- **Bottom end:** J2 (Nano-Fit 2×4 for heater, fan, thermistor and sensor), right-angle, centred on the bottom edge and pointing down, so a cable leaves the toolhead straight down the middle. F2 and the D6 clamp sit on top in the channel between J2 and the MCU; D5 is under J2. Q2 sits on top to the right of J2's heater pins, over the buck inductor L1, with U7 between it and the right edge; the gate-drive rail parts R13, D10 and C21 are underneath in the strip between L1 and the edge, and R14 is on top beside C2; Q3 and the fan's gate resistors are to the left of J2. R22, R23 and C20 sit in a row on top between H1's keep-out and J2.
 - **Centre (bottom side):** U6 with its decoupling, VREF and crystal parts on the pin 4–10 side; the buck in the right-hand strip beside and below the MCU, away from the thermistor filter.
 - **Thermistor:** RC filter and clamp close to PA2, away from the heater traces; run TH_SIG from J2 away from FAN_N.
 
@@ -229,27 +232,27 @@ Target a 31 × 36 mm, 4-layer, 1.6 mm board with 1 oz copper. Stackup: top (conn
 
 **As routed (31 × 36 board), where it differs from the guidance above:**
 
-- **Q2 drain:** about 31 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the buck inductor and the switch node. At the ~0.2 W the AON7264E dissipates at 2.5 A, that is about a 15–20 °C rise; check it at full heater power.
+- **Q2 drain:** about 31 mm² of top-layer HEAT_N pour plus 0.8 mm tracks to J2, with no thermal vias, not 150 mm². The bottom side under Q2 holds the buck inductor and the switch node. At the under 0.1 W the AON7264E dissipates at 2.5 A with its 12 V gate drive, that is under a 10 °C rise.
 - **Q2 position:** on the top side over the buck inductor (L1), about 9.5 mm from the crystal and clear of the MCU.
-- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar, connect solid to the top GND pour and reach the GND plane through 2 vias, not 6+ (one of them is R14's, tied across to pin 1; L1 fills the bottom side under them); check the source-side temperature along with Q2's at full heater power.
+- **FET source vias:** Q1 drains into the +24V plane through 4 vias and a bottom pour; Q2's three source pins are joined by a bar, connect solid to the top GND pour and reach the GND plane through 2 vias, not 6+ (one joins through the top pour at the corner below pin 1; L1 fills the bottom side under them), plus U7's ground via beside them; check the source-side temperature along with Q2's at full heater power.
 - **Heater path:** the input runs J1 → F1 → Q1 through bottom-layer VIN_RAW/VIN_F pours, and the load current through the In2 +24V plane, rather than 3 mm traces.
 - **Buck switch node:** on the bottom layer, since all ICs are on the bottom.
 - **AGND:** not split; the thermistor filter returns to the solid In1 GND plane.
 - **USB and CAN pairs:** U6's USB pins sit only about 1.8 mm below J5's pad row, with SWCLK and a VBUS via in the same strip. From U5's vias both lines run west on top, D+ above D−, each to a via in front of its U6 pin (2 vias each, about 13 and 15 mm). CC1 and CC2 drop through vias just above their J5 pads to R20/R21 under the shell. CAN_H leaves U3 on the bottom layer through the gap beside H1's keep-out (no vias); CAN_L drops through a via below U3 and comes back up beside D4 (2 vias).
 - **Thermistor ADC line:** TH_ADC runs from PA2 on the bottom layer down the lane beside C15/C14 to R19/C19 (about 10 mm), and through one via to the D6 clamp on top. SENS_IN runs in the next lane out to C20 (18 mm, 1 via).
-- **Heater PWM on PB9 (pin 48):** HEAT_PWM leaves through one via and runs on top under SW1 and down the right edge to R13/R14 (about 20 mm), clear of the buck. NRST, which that run closes off from SW1, goes down SW1's outer side, crosses under it on the bottom layer and runs west through the gap between C8 and C2 to C15 (33 mm, 3 vias).
+- **Heater PWM on PB9 (pin 48):** HEAT_PWM leaves through one via and runs on top under SW1 and down the right edge, past R14 beside C2, then round U7's outer side to IN+ (about 22 mm), clear of the buck. That last stretch runs 0.7 mm from the board edge, next to a panel mouse-bite tab; the panel DRC passes. NRST, which that run closes off from SW1, goes down SW1's outer side, crosses under it on the bottom layer and runs west through the gap between C8 and C2 to C15 (33 mm, 3 vias).
 - **Fan PWM and VREF:** FAN_PWM (PA6) crosses the MCU's left-hand lanes on top, between C1's pads and under JP1, to R15/R16 (25 mm, 1 via). VREFP reaches the thermistor pull-ups R17/R18 at the far left on a long route: down beside J2 on the bottom layer, then on top under J2's pins and up the left edge (about 59 mm, 2 vias); it is a DC reference with C11/C12 at the MCU and the RC filter at the ADC pin.
 - **Test points:** none fitted.
 
 ## Thermal
 
-The expected air temperature around the board is about 50 °C. The design is checked at a 70 °C worst case: an enclosed chamber at 60 °C plus local heat near the toolhead. Every part is rated for that, and the heater FET is the only part that runs meaningfully warm.
+The expected air temperature around the board is about 50 °C. The design is checked at a 70 °C worst case: an enclosed chamber at 60 °C plus local heat near the toolhead. Every part is rated for that, and the two power FETs are the only parts that run meaningfully warm.
 
 Estimated temperatures at full heater power (72 W, 3 A, 24 V) and 70 °C ambient:
 
 | Part | Dissipation | Estimated temperature | Rating |
 | --- | --- | --- | --- |
-| Q2 heater FET (AON7264E, about 20–30 mΩ hot at a 3.3 V gate) | ~0.2–0.3 W | ~90–95 °C junction | 150 °C |
+| Q2 heater FET (AON7264E, about 13 mΩ hot at its 12 V gate) | ~0.12 W | ~80 °C junction | 150 °C |
 | Q1 reverse-polarity FET | ~0.4 W | ~90 °C junction | 150 °C |
 | F1 fuse | ~0.15 W | ~75 °C | Derated, still above load |
 | U1 buck | <0.1 W | ~75 °C | 125 °C |
@@ -268,7 +271,7 @@ Bring the board up on USB first, then 24 V with no loads, then CAN, and connect 
 
 1. **USB only:** check the 3.3 V rail; a blank MCU enumerates as an STM32 DFU device on its own (otherwise short the BOOT pads and tap RESET).
 2. **Flash Katapult** (MCU STM32G0B1, 8 MHz crystal, CAN on PB0/PB1, 1 Mbit/s), then Klipper with the same settings and the Katapult bootloader offset.
-3. **24 V, current-limited to ~200 mA, no loads:** confirm Q2's gate stays at 0 V through reset and boot, and that idle draw is under ~60 mA.
+3. **24 V, current-limited to ~200 mA, no loads:** confirm Q2's gate stays at 0 V through reset and boot, that U7's supply (C21) sits at about 11.5–12 V, and that idle draw is under ~60 mA.
 4. **CAN:** bridge JP1 if this is the last node, then run `~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0` to get the UUID.
 5. **Loads:** fan first, then thermistor (check room temperature reads correctly), then the heater with a PID calibration.
 
@@ -299,17 +302,25 @@ cycle_time: 0.01
 
 [output_pin status_led]
 pin: tool:PB5
+
+[temperature_sensor tool_mcu]
+sensor_type: temperature_mcu
+sensor_mcu: tool
+
+[filament_switch_sensor tool_switch]
+switch_pin: !tool:PA3
+pause_on_runout: True
 ```
 
-Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID values above are placeholders. For a PT1000, fit the shunt on JP2 and change the sensor lines to `sensor_type: PT1000` and `pullup_resistor: 2200`.
+Run `PID_CALIBRATE HEATER=tool_heater TARGET=200` and save the results; the PID values above are placeholders. PA3 has its own 10 kΩ pull-up (R22), so the switch pin needs no `^`. The switch closes to GND, and `!` makes a closed switch read as filament present. Drop the `!` for a normally-closed switch. To use the input as an endstop instead, put `endstop_pin: !tool:PA3` in the stepper section in place of the `[filament_switch_sensor]`. For a PT1000, fit the shunt on JP2 and change the sensor lines to `sensor_type: PT1000` and `pullup_resistor: 2200`.
 
 **Decisions before schematic capture (all settled; two prototype checks left):**
 
 - [x] Sensor type settled: 100k NTC or PT1000, selected by JP2
-- [x] Heater power settled: 60–72 W at 24 V
+- [x] Heater power settled: 60–72 W at 24 V, with a 12 V gate driver (U7) so Q2's on-resistance is guaranteed rather than typical
 - [x] J1 settled: XT30(2+2) for a BTT/Voron-style cable, fixed CAN order, pin 3 = CAN_H, pin 4 = CAN_L
 - [x] Analog supply settled: VREF+ is a separate pin (5), VDD/VDDA bonded on pin 6, so FB1 is fitted
 - [x] Mounting settled: two M3 holes, left edge and bottom-right corner, about 27.5 mm apart; fan settled at 0.5 A or less
 - [x] Fabrication settled: ordered as a 3 × 3 panel (`tools/make_panel.sh`), rebuilt and checked after every layout change
 - [ ] Prototype check (required feature): program the board from a laptop USB port with 24 V disconnected, and confirm the buck input stays above about 4.4 V (the buck needs 4 V minimum)
-- [ ] Prototype check: measure Q2's case temperature with a thermocouple during a long print in the enclosed printer; it should stay under about 110 °C
+- [ ] Prototype check: measure Q2's case temperature with a thermocouple during a long print in the enclosed printer; expect about 80 °C, and it should stay under about 110 °C

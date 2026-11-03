@@ -43,6 +43,8 @@ USBLC6_LAYOUT = ([(1, "IO1"), (6, "IO1"), (2, "GND")], [(3, "IO2"), (4, "IO2"), 
 FET_LAYOUT = ([(4, "G"), (1, "S"), (2, "S"), (3, "S")], [(5, "D")])
 SOT3_LAYOUT = ([(1, "1"), (2, "2")], [(3, "3")])
 SOT23FET_LAYOUT = ([(1, "G"), (2, "S")], [(3, "D")])
+# TI UCC27517 low-side gate driver, SOT-23-5 "DBV": 1 VDD, 2 GND, 3 IN+, 4 IN-, 5 OUT.
+GATEDRV_LAYOUT = ([(1, "VDD"), (3, "IN+"), (4, "IN-")], [(5, "OUT"), (2, "GND")])
 XTAL4_LAYOUT = ([(1, "X1"), (2, "GND")], [(3, "X2"), (4, "GND")])
 BAT54S_LAYOUT = ([(1, "A1"), (2, "K2")], [(3, "K1/A2")])
 XT30_LAYOUT = ([(1, "P+"), (2, "P-")], [(3, "S1"), (4, "S2")])
@@ -77,7 +79,9 @@ FP = {
     "SOD123F": "Diode_SMD:D_SOD-123F",
     "SOD123": "Diode_SMD:D_SOD-123",
     "SOT23": "Package_TO_SOT_SMD:SOT-23",
+    "SOT235": "Package_TO_SOT_SMD:SOT-23-5",
     "SOT236": "Package_TO_SOT_SMD:SOT-23-6",
+    "SOD523": "Diode_SMD:D_SOD-523",
     "VSON8": "Package_SON:VSON-8-1EP_3x3mm_P0.65mm_EP1.65x2.4mm",
     "QFN48": "Package_DFN_QFN:QFN-48-1EP_7x7mm_P0.5mm_EP5.6x5.6mm",  # ST UFQFPN48
     "DFN3X3FET": "hotswap_toolhead:AOS_DFN-8-1EP_3x3mm_P0.65mm",
@@ -189,12 +193,21 @@ PARTS = [
     P("J2", "box", "Heater/fan/therm/sensor (Nano-Fit 2x4)", "NANOFIT8",
       {1: "+24V", 5: "HEAT_N", 2: "FAN_P", 6: "FAN_N", 3: "TH_SIG", 7: "GND", 4: "SENS", 8: "GND"},
       lcsc="C841208", block="Heater", layout=CONN8_LAYOUT),
-    # 60 V, 13.3 mR max at 4.5 V; driven straight from the 3.3 V MCU pin, so
-    # check under 75 mV across it at 2.5 A on the bench.
+    # 60 V, 9.5 mR max at 10 V. No 40-60 V FET at JLCPCB is rated below a 4.5 V
+    # gate, so U7 drives it from a 12 V zener rail instead of the 3.3 V MCU pin.
     P("Q2", "box", "AON7264E", "DFN3X3FET",
       {1: "GND", 2: "GND", 3: "GND", 4: "HEAT_G", 5: "HEAT_N"},
       lcsc="C431191", block="Heater", layout=FET_LAYOUT),
-    two("R13", "R", "10k", "R0402", "HEAT_PWM", "HEAT_G", block="Heater"),
+    # Non-inverting (IN- to GND). UVLO and the input pull-downs hold OUT low
+    # while the MCU is in reset or the 24 V is off.
+    P("U7", "box", "UCC27517DBVR", "SOT235",
+      {1: "GATE_12V", 2: "GND", 3: "HEAT_PWM", 4: "GND", 5: "HEAT_G"},
+      lcsc="C99395", block="Heater", layout=GATEDRV_LAYOUT),
+    # 12 V gate-drive rail from the buck input (24 V less D7's drop): about 1.1-1.7 mA
+    # at 24-30 V, under 1 mA of it for U7. On USB alone it sits below U7's UVLO.
+    two("R13", "R", "10k", "R0402", "VIN_LOGIC", "GATE_12V", block="Heater"),
+    two("D10", "D", "BZX585-C12 12V", "SOD523", "GATE_12V", "GND", lcsc="C455018", block="Heater"),
+    two("C21", "C", "1uF", "C0402", "GATE_12V", "GND", lcsc="C52923", block="Heater"),
     two("R14", "R", "10k", "R0402", "HEAT_PWM", "GND", block="Heater"),
     # ---------------- Fan ----------------
     two("F2", "R", "PTC 0.75A 33V (JK-mSMD075-33)", "F1812", "+24V", "FAN_P", lcsc="C369169", block="Fan"),
