@@ -54,8 +54,15 @@ for fp in b.GetFootprints():
     pads = {n: (sum(x for x, _ in v) / len(v), sum(y for _, y in v) / len(v)) for n, v in pads.items()}
     res = None
     if code in db:
+        # EasyEDA names a second pad of the same pin with a backtick ('1`', HTML-escaped as
+        # '1&#96;'): average them like the board's same-numbered pads, or the fit lands on
+        # one pad instead of the pair's centre
+        same = {}
+        for n, xy in db[code]['pads'].items():
+            same.setdefault(n.replace('&#96;', '').rstrip('`'), []).append(xy)
+        same = {n: (sum(x for x, _ in v) / len(v), sum(y for _, y in v) / len(v)) for n, v in same.items()}
         # seen from above, a bottom part is JLCPCB's footprint mirrored left-right
-        jlc = {n: ((-x if bottom else x), y) for n, (x, y) in db[code]['pads'].items() if n in pads}
+        jlc = {n: ((-x if bottom else x), y) for n, (x, y) in same.items() if n in pads}
         # pads that share a number but not a place (a merged drain tab) are dropped worst-first
         while len(jlc) >= 2:
             res = fit(pads, jlc)
