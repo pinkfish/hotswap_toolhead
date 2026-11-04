@@ -21,3 +21,7 @@ Thumbs.db
 
 # KiCad local history (its own git repo per project folder)
 .history/
+
+# KiCad Fabrication Toolkit plugin output: not for ordering (see gerber/README.md)
+production/
+fabrication-toolkit-options.json
