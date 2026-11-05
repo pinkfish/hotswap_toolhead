@@ -30,12 +30,12 @@ pcbnew.SaveBoard(f, b)
 print(n, 'panel footprints excluded from BOM and position files')
 PY
 cp hardware/toolhead.kicad_dru $P/toolhead_panel.kicad_dru
-# H2's ring is exactly 0.5 mm from the board corner; KiKit's rebuilt outline puts that corner
-# 0.0006 mm closer, so the panel allows 0.49 mm there
+# H1's and H2's rings are exactly 0.5 mm from the board corners; KiKit's rebuilt outline puts
+# those corners a hair closer, so the panel allows 0.49 mm there
 cat >> $P/toolhead_panel.kicad_dru <<'DRU'
 
-(rule "H2 ring at the panel's board corners"
-  (condition "A.memberOfFootprint('H2_*')")
+(rule "H1/H2 rings at the panel's board corners"
+  (condition "A.memberOfFootprint('H1_*') || A.memberOfFootprint('H2_*')")
   (constraint edge_clearance (min 0.49mm)))
 DRU
 rm -rf $G && mkdir -p $G

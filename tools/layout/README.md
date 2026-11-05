@@ -1,20 +1,20 @@
 # Layout scripts
 
-These scripts placed and routed `hardware/toolhead.kicad_pcb` (31 × 36 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
+These scripts placed and routed `hardware/toolhead.kicad_pcb` (27 × 36 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
 
 ```
-tools/layout/run_layout.sh /path/to/workdir
+SRC=src31.kicad_pcb tools/layout/run_narrow.sh /path/to/workdir
 ```
 
-`run_layout.sh` copies the project files from `hardware/` into the work directory. It strips the committed board of copper and runs every step below. It leaves `board.kicad_pcb` there and never writes to `hardware/`. Check the result in KiCad and with `tools/verify.py` before copying it over `hardware/toolhead.kicad_pcb`.
+The 27 mm board is laid out from the routed 31 × 36 mm one (`git show centre-j2:hardware/toolhead.kicad_pcb > src31.kicad_pcb`): `run_narrow.sh` moves its routed blocks across with their copper, places the rest and routes it. `run_layout.sh` is the original from-scratch run that made the 31 mm board. Both copy the project files from `hardware/` into the work directory, leave `board.kicad_pcb` there and never write to `hardware/`. Check the result in KiCad and with `tools/verify.py` before copying it over `hardware/toolhead.kicad_pcb`.
 
 The layout isn't finished at that point. The board is always fabricated as a 3 × 3 panel (see "Panel" in `docs/design_spec.md`), so every layout change must be followed by:
 
 1. `tools/fab.sh`, which regenerates the single-board `gerber/`.
-2. `tools/make_panel.sh`, which rebuilds `hardware/panel/` and `gerber/panel/`. It must report 9 boards and 567 placements, with panel DRC at 0 errors and 0 unconnected.
+2. `tools/make_panel.sh`, which rebuilds `hardware/panel/` and `gerber/panel/`. It must report 9 boards and 594 placements, with panel DRC at 0 errors and 0 unconnected.
 3. Committing the board, `gerber/`, `hardware/panel/` and `gerber/panel/` together.
 
-Keep the tab windows clear of parts at the side edges (y 9.0–10.6 and 23.2–29.5, left and right; there are no top/bottom tabs), or move the tabs in `tools/panel_tabs.py`.
+Keep the tab windows clear of copper at the side edges (y 9.0–10.9 and 16.5–18.8, left and right; there are no top/bottom tabs), or move the tabs in `tools/panel_tabs.py`.
 
 ## Requirements
 
@@ -22,9 +22,9 @@ Keep the tab windows clear of parts at the side edges (y 9.0–10.6 and 23.2–2
 - **Freerouting 1.9.0:** set `FREEROUTING_JAR` to the jar. It isn't in the repo. 2.x crashed or hung on this board.
 - **Java 21 or newer:** set `JAVA` if `java` isn't on the path. Freerouting 1.9.0 opens its window while it routes.
 
-Other settings: `BH` sets the board height (default 36), `C1Y`, `U6X` and `U6Y` move C1 and the MCU. `MAZE_ITER` sets the maze clean-up passes (default 6). `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`.
+Other settings: `BW`/`BH` set the board size (`run_narrow.sh` defaults to 27 × 36, `run_layout.sh` to 31 × 36); `C1Y`, `U6X` and `U6Y` move C1 and the MCU in `run_layout.sh`. `MAZE_ITER` sets the maze clean-up passes (default 6), `SOFT_ITERS` how many of them may rip up unlocked routes. `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`. `HARD` (`run_narrow.sh`) lists the nets maze-routed and locked before Freerouting; `HARD=` skips that.
 
-Freerouting's result depends on the pass count, so the committed board came from routing the same pre-route board several times: `PRE_ONLY=1 run_layout.sh dir`, then Freerouting, `finish3.py`, `power_pre.py --post` and `ripup_loop.sh` on copies with `FR_PASSES` 25 to 55, keeping a copy that ends with 0 unconnected and the shortest track. A single `run_layout.sh` run can end with one or two connections open; when the same one stays open across pass counts, it needs a pre-route rather than more maze passes.
+Freerouting 1.9.0 isn't deterministic here: the same pre-route board gives different results run to run (one run took 27 s, the next 90 s), and a run can end with one to three connections open. The committed 27 mm board came from running `run_narrow.sh` three times side by side (default `HARD`, `HARD=` and `HARD=/VREFP,/NRST,/+3V3`) and keeping the one that ended with 0 unconnected; run it again a few times rather than adding maze passes. When the same connection stays open across runs, it needs a pre-route (`narrow_pre.py`) instead.
 
 ## Steps
 
@@ -44,14 +44,21 @@ Freerouting's result depends on the pass count, so the committed board came from
 | `netclasses.py` | Power, Fan, Supply and USB net classes in the project |
 | `power_pre.py` | +24V pour and via array on Q1, with room reserved for the VIN pours (`--post` fills them after routing) |
 | `export_dsn.py`, `frbest.sh` | Specctra export with the boundary pulled 0.3 mm in from the edge, then Freerouting |
-| `finish3.py` | Imports the session; adds the HEAT_N pour and the F/B GND pours; stitches and fills |
-| `ripup_loop.sh`, `maze.py` | Re-runs DRC and routes whatever is still unconnected on a 0.05 mm grid |
-| `finalize.py`, `undangle.py`, `silk.py` | Solid connections for starved thermals; removes dangling vias and stubs; silkscreen tidy-up |
+| `finish3.py` | Imports the session; adds the HEAT_N pour and the F/B GND pours; stitches (keeping stitching vias 0.25 mm from any drilled pad) and fills |
+| `ripup_loop.sh`, `maze.py` | Re-runs DRC and routes whatever is still unconnected on a 0.05 mm grid. `ONLY`/`ORDER`/`LOCK` route just the listed nets, in that order, and lock them (the `HARD` step) |
+| `finalize.py`, `undangle.py`, `silk.py` | Solid connections for starved thermals; removes dangling vias, then dangling stubs and the near-zero-length scraps of the session import, keeping any whose removal would open a connection; silkscreen tidy-up |
 | `check.sh` | DRC summary; the full report goes in `drc.json` beside the board |
+| `blocks.py` | `run_narrow.sh`: copies the 31 mm board with C1 swapped to the 1206 ceramic and the holes to M2.5, then moves its routed blocks (power input, USB-C, MCU with crystal and CAN, buck, J2, F2) to the 27 mm outline with their own copper; sets SW1's duplicate pad numbers as jumpers (its two pin-1 pads are joined inside the switch) and trims F2's courtyard to its pads plus 0.05 mm so it clears J2's |
+| `plan_narrow.py` | `run_narrow.sh`: the `PLAN` that `place.py` reads (`PLAN_FILE`) for the parts not in a block; block parts keep their place |
+| `declash.py` | Removes moved block copper that DRC reports in a clash with the new placement, then copper left touching no pad; in a clash with a `narrow_pre.py` pre-route only the other copper goes |
+| `narrow_pre.py` | `run_narrow.sh` pre-routes, grouped so `declash.py` keeps them: FAN_P to D5 round J2, D7's +24V via, LED_STAT and the LED anodes, R5's +3V3 to R2, F2's +24V via, HEAT_PWM to U7 and R14, NRST over C8 to SW1, VREFP out of its decoupling and back west between C8 and F2, U6's +3V3 vias to C8, FB1's +3V3 to L1, C8's GND via, FAN_PWM round the CAN pair to R15, CAN_L to U3 |
+| `island_vias.py` | A GND via in each F/B GND pour island that has none (an island boxed in by tracks counts as unconnected) |
 | `gate_driver.py` | Applied once to the committed board, after the run: adds the heater gate driver U7 beside Q2 and its 12 V rail (R13 from VIN_LOGIC, D10, C21) underneath, moves R14 up beside C2, and re-routes HEAT_PWM round U7 to IN+ |
 
 ## Done by hand on the committed board
 
-The committed board is a run's `board.kicad_pcb` (31 × 36, `FR_PASSES` 55) with Q2's source pads set to a solid zone connection, which `misc_pre.py` now does itself, plus two later edits. First, JP2 changed from the Pin1Left to the Pin1Right SMD header footprint (the real part's leg stagger) with its pin numbers swapped, so TH_SIG's pad moved up and JP2_A's down by 1.27 mm. Their stubs were re-routed, and VREFP's turn from the left edge onto the bottom-edge run now drops to y 33.81 before turning, clear of JP2's lower pad. A fresh run routes JP2 by itself. Second, `gate_driver.py` added the heater gate driver: U7 on top between Q2 and the right edge, the GATE_12V rail parts under it, R14 moved up beside C2, and R13 turned from the gate series resistor into the rail's feed resistor on the bottom. `place.py` and `heat_pre.py` still describe the earlier direct gate drive, so a fresh run needs `gate_driver.py` after it (or those two scripts updated). The CAN H/L labels on F.Silkscreen at (5.55, 7.65) and (5.55, 5.1) come through from the stripped board.
+The committed 27 mm board is `run_narrow.sh`'s `board.kicad_pcb` from the run that routed fully, with three fixes made by hand that the scripts now make themselves: a stitching via 0.1 mm from J2 pin 7's drill removed (`finish3.py` now keeps clear of drilled pads), a dangling FAN_P via and stub past D5 removed, and a second `finalize.py`/`undangle.py` pass. C21's and U7's references were also moved to F.Fab, as their silk sat on each other's pads.
+
+The 31 mm board it started from was a `run_layout.sh` run (`FR_PASSES` 55) with Q2's source pads set to a solid zone connection, which `misc_pre.py` now does itself, plus two later edits. First, JP2 changed from the Pin1Left to the Pin1Right SMD header footprint (the real part's leg stagger) with its pin numbers swapped, so TH_SIG's pad moved up and JP2_A's down by 1.27 mm. Second, `gate_driver.py` added the heater gate driver: U7 on top between Q2 and the right edge, the GATE_12V rail parts under it, R14 moved up beside C2, and R13 turned from the gate series resistor into the rail's feed resistor on the bottom. `place.py` and `heat_pre.py` still describe the earlier direct gate drive, so a fresh `run_layout.sh` run needs `gate_driver.py` after it. The CAN H/L labels on F.Silkscreen come through from that board.
 
 Coordinates are in mm from the board's top-left corner, seen from the top. KiCad places the board at an offset of (100, 100).

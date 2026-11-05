@@ -9,13 +9,13 @@ and keep the one with the shortest connections.
 import pcbnew, sys, math
 
 import os
-W, H = 31.0, float(os.environ.get('BH', '36'))
+W, H = float(os.environ.get('BW', '31')), float(os.environ.get('BH', '36'))
 E = lambda k, d: float(os.environ.get(k, d))
 H1Y, C1X, C1Y, JPX, JPY, U6X, U6Y = E('H1Y', 16.0), E('C1X', 15.75), E('C1Y', 15.9), E('JPX', 20.0), E('JPY', H - 3.0), E('U6X', 18.8), E('U6Y', 14.1)
 OX, OY = 100.0, 100.0
-# clear circle around each M3 hole on both sides, for a heat-set insert in a
-# printed base: 3 mm radius, enough for an M3 screw head or washer
-KEEP_R = 3.0
+# clear circle around each M2.5 hole on both sides, for a heat-set insert in a
+# printed base: 2.7 mm radius, enough for an M2.5 screw head or washer
+KEEP_R = 2.7
 GAP = 0.15
 
 PLAN = {
@@ -86,6 +86,12 @@ ESCAPE = {'U6': (1.2, 0.4, 0.6, 0.3)}
 PIN_OUT = 3.0   # mm outward from the owner's centre past the pin
 EDGE_OK = {'J1', 'J2', 'J5', 'SW1', 'H1', 'H2'}
 HOLES = {'H1', 'H2'}   # keep-out on both sides
+# PLAN_FILE replaces PLAN (and may set ESCAPE): an entry with x None keeps the part where the
+# board has it (a block moved by blocks.py), fixed, on the side it is on
+if os.environ.get('PLAN_FILE'):
+    _g = {'H': H, 'W': W}
+    exec(open(os.environ['PLAN_FILE']).read(), _g)
+    PLAN, ESCAPE = _g['PLAN'], _g.get('ESCAPE', ESCAPE)
 
 
 def main(src, dst):
@@ -132,8 +138,12 @@ def main(src, dst):
         f.SetOrientationDegrees(rot)
         f.SetPosition(pcbnew.VECTOR2I_MM(OX + x, OY + y))
 
-    for ref, (x, y, rot, side, _) in PLAN.items():
+    for ref, (x, y, rot, side, _) in list(PLAN.items()):
         f = fps[ref]
+        if x is None:
+            PLAN[ref] = (pcbnew.ToMM(f.GetPosition().x) - OX, pcbnew.ToMM(f.GetPosition().y) - OY,
+                         f.GetOrientationDegrees(), 'B' if f.IsFlipped() else 'F', 1)
+            continue
         if f.IsFlipped() != (side == 'B'):
             f.Flip(f.GetPosition(), False)
         put(ref, x, y, rot or 0)

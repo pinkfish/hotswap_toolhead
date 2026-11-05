@@ -3,7 +3,7 @@
 Outputs (in ./out):
   toolhead.kicad_pro   minimal project file (only if missing)
   toolhead.kicad_sch   schematic: every pin tied to its net with a label
-  toolhead.kicad_pcb   board outline, M3 holes, notes (footprints come in
+  toolhead.kicad_pcb   board outline, M2.5 holes, notes (footprints come in
                        with Tools > Update PCB from Schematic); only written
                        if missing, so the routed board is never overwritten
   toolhead.kicad_dru   custom design rules (current, clearance)
@@ -250,8 +250,8 @@ def build_schematic():
 # PCB starter
 # ---------------------------------------------------------------------------
 OX, OY = 100.0, 100.0  # board origin on the PCB sheet
-BW, BH = 31.0, 36.0
-HOLES = {"H1": (3.5, 16.0), "H2": (27.5, 32.5)}  # M3 insert positions
+BW, BH = 27.0, 36.0
+HOLES = {"H1": (3.2, 32.6), "H2": (23.5, 32.5)}  # M2.5 insert positions
 
 LAYERS = """  (layers
     (0 "F.Cu" signal)
@@ -280,13 +280,13 @@ LAYERS = """  (layers
 
 
 def mounting_hole(ref, x, y):
-    return f"""  (footprint "MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (uuid {q(uid())}) (at {f(x)} {f(y)})
+    return f"""  (footprint "MountingHole:MountingHole_2.7mm_M2.5_Pad" (layer "F.Cu") (uuid {q(uid())}) (at {f(x)} {f(y)})
     (property "Reference" {q(ref)} (at 0 -4.3 0) (layer "F.SilkS") (uuid {q(uid())}) (effects (font (size 1 1) (thickness 0.15))))
-    (property "Value" "M3 isolated" (at 0 4.3 0) (layer "F.Fab") (uuid {q(uid())}) (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "M2.5 isolated" (at 0 4.3 0) (layer "F.Fab") (uuid {q(uid())}) (effects (font (size 1 1) (thickness 0.15))))
     (attr exclude_from_pos_files exclude_from_bom board_only)
-    (fp_circle (center 0 0) (end 3.25 0) (stroke (width 0.05) (type solid)) (fill none) (layer "F.CrtYd") (uuid {q(uid())}))
-    (fp_circle (center 0 0) (end 3.25 0) (stroke (width 0.05) (type solid)) (fill none) (layer "B.CrtYd") (uuid {q(uid())}))
-    (pad "1" thru_hole circle (at 0 0) (size 6 6) (drill 3.2) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid {q(uid())}))
+    (fp_circle (center 0 0) (end 2.75 0) (stroke (width 0.05) (type solid)) (fill none) (layer "F.CrtYd") (uuid {q(uid())}))
+    (fp_circle (center 0 0) (end 2.75 0) (stroke (width 0.05) (type solid)) (fill none) (layer "B.CrtYd") (uuid {q(uid())}))
+    (pad "1" thru_hole circle (at 0 0) (size 5.4 5.4) (drill 2.7) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid {q(uid())}))
   )"""
 
 

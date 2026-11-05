@@ -70,7 +70,6 @@ FP = {
     "C0603": "Capacitor_SMD:C_0603_1608Metric",
     "C0805": "Capacitor_SMD:C_0805_2012Metric",
     "C1206": "Capacitor_SMD:C_1206_3216Metric",
-    "CPEL": "Capacitor_SMD:CP_Elec_6.3x7.7",
     "L0402": "Inductor_SMD:L_0402_1005Metric",
     "L4040": "Inductor_SMD:L_Taiyo-Yuden_NR-40xx",
     "LED0603": "LED_SMD:LED_0603_1608Metric",
@@ -119,7 +118,7 @@ PARTS = [
       lcsc="C3279500", block="Power input", layout=FET_LAYOUT),
     two("D2", "D", "MMSZ5242B 12V", "SOD123", "+24V", "Q1_G", lcsc="C19077426", block="Power input"),
     two("R1", "R", "10k", "R0402", "Q1_G", "GND", block="Power input"),
-    two("C1", "CP", "47uF 50V 105C", "CPEL", "+24V", "GND", lcsc="C72523", block="Power input"),
+    two("C1", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
     two("C2", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
     two("C3", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
     # ---------------- Logic supply ----------------

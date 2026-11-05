@@ -2,7 +2,8 @@
     maze.py board.kicad_pcb drc.json [out.kicad_pcb]
 Reads KiCad DRC json 'unconnected_items', routes each pair on F/In2/B with
 A* on a 0.05 mm grid (real pad shapes, netclass clearances, hole and edge
-clearance, through vias), adds the tracks/vias and refills zones.
+clearance, through vias), adds the tracks/vias and refills zones. ORDER: nets to route first;
+ONLY: route just these nets; LOCK: lock what's routed (comma-separated net names).
 """
 import heapq
 import os
@@ -51,6 +52,8 @@ def copper_items():
 
 KILLED = set()      # uuids of tracks/vias ripped up this run
 SOFT = bool(os.environ.get('SOFT'))
+ONLY = {n for n in os.environ.get('ONLY', '').split(',') if n}   # route just these nets
+LOCK = bool(os.environ.get('LOCK'))       # lock what's routed (hard nets routed before Freerouting)
 SOFT_COST = 60
 
 
@@ -354,6 +357,7 @@ def commit(g, path, netinfo, w, track, ok, stk=None):
             t.SetWidth(mm(w))
             t.SetLayer(LAYERS[a[0]])
             t.SetNet(netinfo)
+            t.SetLocked(LOCK)
             b.Add(t)
             n += 1
     for l, i, j in vias:
@@ -362,6 +366,7 @@ def commit(g, path, netinfo, w, track, ok, stk=None):
         v.SetWidth(mm(VIA_D))
         v.SetDrill(mm(VIA_DRILL))
         v.SetNet(netinfo)
+        v.SetLocked(LOCK)
         b.Add(v)
     return n, len(vias)
 
@@ -373,6 +378,8 @@ for u in drc.get('unconnected_items', []):
     if 'Zone' in a['description'] or 'Zone' in c['description']:
         continue
     net = a['description'].split('[')[1].split(']')[0]
+    if ONLY and net not in ONLY:
+        continue
     todo.append((net, a, c))
 # nets named in ORDER first (in that order), then short connections first
 import os

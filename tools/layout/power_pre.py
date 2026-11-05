@@ -5,6 +5,7 @@ Before routing: B.Cu +24V pour on Q1's source pins with a via array to the In2
 +24V plane, and rule areas reserving room for the VIN_RAW and VIN_F pours.
 After routing (--post): those rule areas become the VIN_RAW / VIN_F pours.
 """
+import os
 import sys
 
 import pcbnew
@@ -26,6 +27,17 @@ POURS = {
     '/+24V': [(5.2, 2.95), (7.7, 2.95), (7.7, 7.0), (5.2, 7.0)],
 }
 PLANE_VIAS = {'/+24V': [(5.75, 4.4), (5.75, 5.5), (5.6, 6.55), (6.7, 6.55)]}
+if os.environ.get('NARROW'):
+    # 27 mm board (blocks.py, plan_narrow.py): the input block sits 0.25 mm further left, and D1 stands
+    # between J1's power pins under Q1's drain, so VIN_F drops straight down to it
+    POURS = {
+        '/VIN_RAW': [(13.15, 5.0), (15.35, 5.0), (15.35, 8.0), (14.05, 8.0), (14.05, 10.4),
+                     (11.15, 10.4), (11.15, 6.6), (13.15, 6.6)],
+        '/VIN_F': [(8.15, 0.6), (15.35, 0.6), (15.35, 4.6), (11.0, 4.6), (11.0, 7.75), (9.15, 7.75),
+                   (9.15, 4.6), (8.15, 4.6)],
+        '/+24V': [(4.95, 2.95), (7.45, 2.95), (7.45, 7.0), (4.95, 7.0)],
+    }
+    PLANE_VIAS = {'/+24V': [(5.5, 4.4), (5.5, 5.5), (5.35, 6.55), (6.45, 6.55)]}
 
 
 def P(x, y):

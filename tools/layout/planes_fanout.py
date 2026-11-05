@@ -17,8 +17,10 @@ if os.environ.get('V24_PLANE'):
     PLANES['/+24V'] = pcbnew.In2_Cu
 else:
     b.SetLayerType(pcbnew.In2_Cu, pcbnew.LT_SIGNAL)   # In2 routed
-# per-net fanout track width and via (diameter, drill)
+# per-net fanout track width and via (diameter, drill); FAN_SMALL is tried where the +24V size
+# finds no room (small parts: a 0.6 mm via still carries well over the 0.5 A fan or buck input)
 FAN = {'/GND': (0.3, 0.6, 0.3), '/+24V': (0.8, 0.8, 0.4)}
+FAN_SMALL = (0.8, 0.6, 0.3)   # the stub keeps the high-current class width
 VIA_D, VIA_DRILL, CLR, TRACK = 0.6, 0.3, 0.2, 0.3
 EDGE = 0.55 + VIA_D / 2   # edge bbox includes half the 0.1 mm outline
 HV = {'/VIN_RAW', '/VIN_F', '/+24V', '/HEAT_N', '/FAN_N', '/FAN_P'}
@@ -84,7 +86,8 @@ def legal_via(pos, net):
         if math.hypot(pos.x - vx, pos.y - vy) < mm(VIA_D + CLR):
             return False
     for layer, seg, tnet, *tw in tracks:
-        if tnet != net and seg.Distance(pos) < mm(VIA_D / 2 + CLR + (tw[0] if tw else TRACK) / 2):
+        clr = HV_CLR if tnet in HV or net in HV else CLR
+        if tnet != net and seg.Distance(pos) < mm(VIA_D / 2 + clr + (tw[0] if tw else TRACK) / 2):
             return False
     return True
 
@@ -109,6 +112,26 @@ def legal_track(layer, a, c, net, own_pad):
     return True
 
 
+def reaches_via(p, net):
+    """True if same-net tracks joined end to end lead from the pad to a via."""
+    segs = [s for _, s, tn, *_ in tracks if tn == net]
+    ends = [pt for s in segs for pt in (s.A, s.B) if p.HitTest(pt)]
+    seen = set()
+    while ends:
+        pt = ends.pop()
+        if (pt.x, pt.y) in seen:
+            continue
+        seen.add((pt.x, pt.y))
+        if any(math.hypot(pt.x - vx, pt.y - vy) < mm(0.05) for vx, vy in vias):
+            return True
+        for s in segs:
+            if s.A == pt:
+                ends.append(s.B)
+            elif s.B == pt:
+                ends.append(s.A)
+    return False
+
+
 added, failed = 0, []
 for f in b.GetFootprints():
     if ONLY and f.GetReference() not in ONLY:
@@ -116,6 +139,9 @@ for f in b.GetFootprints():
     for p in f.Pads():
         net = p.GetNetname()
         if net not in PLANES or p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+            continue
+        # SKIP_ROUTED: a pad that block copper (blocks.py) already ties to a via keeps that
+        if os.environ.get('SKIP_ROUTED') and reaches_via(p, net):
             continue
         layer = pcbnew.B_Cu if p.IsOnLayer(pcbnew.B_Cu) else pcbnew.F_Cu
         TRACK, VIA_D, VIA_DRILL = FAN[net]
@@ -144,15 +170,18 @@ for f in b.GetFootprints():
                     vias.append((pos.x, pos.y))
                     added += 1
             continue
-        half = max(bb.GetWidth(), bb.GetHeight()) / 2
         best = None
-        for ring in range(0, 14):
-            d = min(bb.GetWidth(), bb.GetHeight()) / 2 + mm(VIA_D / 2 + 0.1 + ring * 0.2)
-            for k in range(16):
-                a = k * math.pi / 8
-                pos = pcbnew.VECTOR2I(int(c.x + d * math.cos(a)), int(c.y + d * math.sin(a)))
-                if legal_via(pos, net) and legal_track(layer, c, pos, net, p):
-                    best = pos
+        for size in [FAN[net]] + ([FAN_SMALL] if FAN[net] != FAN_SMALL and os.environ.get('NARROW') else []):
+            TRACK, VIA_D, VIA_DRILL = size
+            for ring in range(0, 14):
+                d = min(bb.GetWidth(), bb.GetHeight()) / 2 + mm(VIA_D / 2 + 0.1 + ring * 0.2)
+                for k in range(16):
+                    a = k * math.pi / 8
+                    pos = pcbnew.VECTOR2I(int(c.x + d * math.cos(a)), int(c.y + d * math.sin(a)))
+                    if legal_via(pos, net) and legal_track(layer, c, pos, net, p):
+                        best = pos
+                        break
+                if best:
                     break
             if best:
                 break

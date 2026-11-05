@@ -23,7 +23,7 @@ The CPL is fitted to JLCPCB's own footprint for each part (`tools/jlc_cpl.py`), 
 
 - **Q1** (SQJ461EP, reverse-polarity FET): the only part with no JLCPCB footprint to fit, so it uses KiCad's anchor and rotation.
 - **U6** (STM32G0B1CBU6, C5270156): JLCPCB had 17 in November 2026, and the panel needs 9. Check the BOM page shows enough stock.
-- **U7** (gate driver, top, beside Q2) and **D10** (12 V zener, bottom, under U7). They have no silkscreen marks, so check them against the board. Seen from the top, U7's pin 1 is the corner on Q2's side, nearer J2's edge, and its OUT pin faces Q2's gate. D10's cathode is the pad nearer the right-hand edge, the edge with SW1.
+- **U7** (gate driver, top, above Q2) and **D10** (12 V zener, top, at the right-hand edge beside U7). They have no silkscreen marks, so check them against the board. Seen from the top, U7's pin 1 (VDD) is the corner nearer the right-hand edge and further from J2, and its OUT pin (5) is below it, facing Q2's gate. D10's cathode is its lower pad, the one nearer J2.
 
 ## Don't use
 

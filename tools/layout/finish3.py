@@ -73,6 +73,9 @@ def solid(layer, x, y, r):
 
 added = 0
 via_pos = [t.GetPosition() for t in b.GetTracks() if t.GetClass() == 'PCB_VIA']
+# drilled pads, kept 0.25 mm (hole to hole) from the via's 0.3 mm drill
+holes = [(p.GetPosition(), p.GetDrillSize().x / 2 + mm(0.15 + 0.25)) for f in b.GetFootprints() for p in f.Pads()
+         if p.GetDrillSize().x]
 step = 2.0
 y = 1.0
 while y < H - 0.5:
@@ -82,7 +85,8 @@ while y < H - 0.5:
         here = pcbnew.VECTOR2I(mm(px), mm(py))
         # solid copper can also be a pad with vias already in it (U6's exposed pad)
         if all(solid(l, px, py, 0.65) for l in POUR) and \
-                all((v - here).EuclideanNorm() >= mm(0.9) for v in via_pos):
+                all((v - here).EuclideanNorm() >= mm(0.9) for v in via_pos) and \
+                all((c - here).EuclideanNorm() >= r for c, r in holes):
             v = pcbnew.PCB_VIA(b)
             v.SetPosition(pcbnew.VECTOR2I(mm(px), mm(py)))
             v.SetWidth(mm(0.6))

@@ -10,6 +10,6 @@
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
 
-(rule "H2 ring at the panel's board corners"
-  (condition "A.memberOfFootprint('H2_*')")
+(rule "H1/H2 rings at the panel's board corners"
+  (condition "A.memberOfFootprint('H1_*') || A.memberOfFootprint('H2_*')")
   (constraint edge_clearance (min 0.49mm)))
