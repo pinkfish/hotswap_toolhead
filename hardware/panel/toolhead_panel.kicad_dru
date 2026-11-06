@@ -9,6 +9,12 @@
   (condition "A.inDiffPair('/USB_D')")
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
+(rule "C15 beside D1"
+  # logic board: the NRST cap, in the MCU corner carried over from the 27 x 36 board, sits under
+  # the TVS's GND end; pads 0.25 mm apart, bodies clear. Wildcards for the panel's C15_n / D1_n
+  # (D1* is only D1 on the logic board; the power board has no C15); DRC tries both orders
+  (condition "A.Reference == 'C15*' && B.Reference == 'D1*'")
+  (constraint courtyard_clearance (min -1mm)))
 
 (rule "H1/H2 rings at the panel's board corners"
   (condition "A.memberOfFootprint('H1_*') || A.memberOfFootprint('H2_*')")

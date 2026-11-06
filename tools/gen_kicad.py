@@ -1,15 +1,16 @@
-"""Generate KiCad 8 files for the toolhead controller from design.py.
+"""Generate KiCad files for the two toolhead boards from design.py.
 
-Outputs (in ./out):
-  toolhead.kicad_pro   minimal project file (only if missing)
-  toolhead.kicad_sch   schematic: every pin tied to its net with a label
-  toolhead.kicad_pcb   board outline, M2.5 holes, notes (footprints come in
-                       with Tools > Update PCB from Schematic); only written
-                       if missing, so the routed board is never overwritten
-  toolhead.kicad_dru   custom design rules (current, clearance)
-  place_footprints.py  run in the PCB editor's scripting console after
-                       updating, to drop parts onto the floorplan
-  bom_jlcpcb.csv       BOM in JLCPCB's upload format
+Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_logic, toolhead_power):
+  NAME.kicad_pro       project file (only if missing; copied from the other board's, so both
+                       keep the same DRC severities)
+  NAME.kicad_sch       schematic: every pin tied to its net with a label
+  NAME.kicad_dru       custom design rules (current, clearance)
+  NAME-bom-jlcpcb.csv  BOM in JLCPCB's upload format
+and bom_jlcpcb.csv, both boards' BOMs together (the panel holds both).
+The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_stack.sh, which
+makes the footprints from the schematic's netlist (tools/layout/from_netlist.py). Symbol UUIDs
+are derived from the board and reference, so regenerating a schematic keeps the footprints
+linked to their symbols.
 """
 import csv
 import json
@@ -21,11 +22,19 @@ import design
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "hardware")
 G = 2.54
-ROOT_UUID = str(uuid.uuid5(uuid.NAMESPACE_DNS, "toolhead-root"))
 
 
 def uid():
     return str(uuid.uuid4())
+
+
+def root_uuid(board):
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, "toolhead-root-" + board))
+
+
+def symbol_uuid(board, ref):
+    """Stable per board and reference: the footprint's path on the board is /<root>/<this>."""
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, "toolhead-" + board + "-" + ref))
 
 
 def f(v):
@@ -60,6 +69,7 @@ LAYOUT_NAMES = {
     id(design.CONN2_LAYOUT): "CONN_2",
     id(design.CONN4_LAYOUT): "CONN_4",
     id(design.CONN8_LAYOUT): "CONN_8",
+    id(design.CONN12_LAYOUT): "CONN_2X6",
     id(design.USBC_LAYOUT): "USB_C_16P",
 }
 TWO_PIN_NAMES = {"R": ("~", "~"), "C": ("~", "~"), "L": ("~", "~"), "CP": ("+", "-"), "D": ("K", "A")}
@@ -149,14 +159,17 @@ def part_extent(part):
     return left, right, top, bottom
 
 
-def build_schematic():
+def build_schematic(board):
+    name, title = design.BOARDS[board]
     lib = {}
     items = []
     placed = []  # (part, X, Y)
     sheet_w = 594
     x0, y = 15.24, 30.48
     for block in design.BLOCK_ORDER:
-        parts = [p for p in design.PARTS if p["block"] == block]
+        parts = [p for p in design.parts(board) if p["block"] == block]
+        if not parts:
+            continue
         items.append(f'  (text {q(block.upper())} (exclude_from_sim no) (at {f(x0)} {f(y)} 0)'
                      f' (effects (font (size 2.54 2.54) bold) (justify left bottom)) (uuid {q(uid())}))')
         y += 5.08
@@ -197,12 +210,13 @@ def build_schematic():
         ]
         s = [f'  (symbol (lib_id {q("toolhead:" + sym_name(p))}) (at {f(X)} {f(Y)} 0) (unit 1)',
              f'    (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp {"yes" if p["dnp"] else "no"})',
-             f"    (uuid {q(uid())})"]
+             f"    (uuid {q(symbol_uuid(board, p['ref']))})"]
         for key, val, px, py, hide in props:
             s.append(f'    (property {q(key)} {q(val)} (at {f(X + px)} {f(Y - py)} 0) {FONT_HIDE if hide else FONT})')
         for num, *_ in pins:
             s.append(f'    (pin {q(num)} (uuid {q(uid())}))')
-        s.append(f'    (instances (project "toolhead" (path {q("/" + ROOT_UUID)} (reference {q(p["ref"])}) (unit 1))))')
+        s.append(f'    (instances (project {q(name)} (path {q("/" + root_uuid(board))}'
+                 f' (reference {q(p["ref"])}) (unit 1))))')
         s.append("  )")
         items.append("\n".join(s))
         for num, nm, px, py, ang in pins:
@@ -222,21 +236,28 @@ def build_schematic():
             else:
                 items.append(f'  (no_connect (at {f(ex)} {f(ey)}) (uuid {q(uid())}))')
 
+    other = [b for b in design.BOARDS if b != board][0]
     notes = [
-        "24 V CAN heater/fan controller - generated from design.py. Each pin connects through a net label.",
-        "U1 is TI LMR16006X (SOT-23-6): pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. D9 is its catch diode.",
-        "J1 uses hotswap_toolhead:XT30PW-2+2-M: put the SnapEDA (or LCSC C19268030) footprint in footprints/hotswap_toolhead.pretty under that name.",
+        title + " - generated from design.py. Each pin connects through a net label.",
+        "J%s is the board-to-board link to the %s board: pin n there carries the same net as pin n here%s." % (
+            "3" if board == "logic" else "4", other,
+            " (pin 12 is GND here, the thermistor return TH_RTN there)" if board == "logic"
+            else " (pin 12 is TH_RTN here, a GND pin on the logic board)"),
+    ] + ([
+        "J1 uses hotswap_toolhead:XT30PW-2+2-M (LCSC C19268030) from footprints/hotswap_toolhead.pretty.",
         "U3 pin 5 is TCAN3414 SHDN: left open (internal pull-down keeps the transceiver on).",
-        "Verify U6 pins against ST DS13560 (STM32G0B1 LQFP-48 pinout) before layout.",
-    ]
+        "Verify U6 pins against ST DS13560 (STM32G0B1 UFQFPN48 pinout) before layout.",
+    ] if board == "logic" else [
+        "U1 is TI LMR16006X (SOT-23-6): pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. D9 is its catch diode.",
+    ])
     for i, n in enumerate(notes):
         items.append(f'  (text {q(n)} (exclude_from_sim no) (at 15.24 {f(12.7 + i * 3.81)} 0)'
                      f' (effects (font (size 1.778 1.778)) (justify left bottom)) (uuid {q(uid())}))')
 
     sch = ["(kicad_sch (version 20231120) (generator \"eeschema\") (generator_version \"8.0\")",
-           f"  (uuid {q(ROOT_UUID)})",
+           f"  (uuid {q(root_uuid(board))})",
            '  (paper "A2")',
-           '  (title_block (title "24V CAN heater/fan controller") (rev "A") (company "") (comment 1 "Generated from design.py"))',
+           f'  (title_block (title {q(title)}) (rev "A") (company "") (comment 1 "Generated from design.py"))',
            "  (lib_symbols"]
     sch += list(lib.values())
     sch.append("  )")
@@ -244,155 +265,6 @@ def build_schematic():
     sch.append('  (sheet_instances (path "/" (page "1")))')
     sch.append(")")
     return "\n".join(sch) + "\n", endpoints, placed
-
-
-# ---------------------------------------------------------------------------
-# PCB starter
-# ---------------------------------------------------------------------------
-OX, OY = 100.0, 100.0  # board origin on the PCB sheet
-BW, BH = 27.0, 36.0
-HOLES = {"H1": (3.2, 32.6), "H2": (23.5, 32.5)}  # M2.5 insert positions
-
-LAYERS = """  (layers
-    (0 "F.Cu" signal)
-    (1 "In1.Cu" power)
-    (2 "In2.Cu" power)
-    (31 "B.Cu" signal)
-    (32 "B.Adhes" user "B.Adhesive")
-    (33 "F.Adhes" user "F.Adhesive")
-    (34 "B.Paste" user)
-    (35 "F.Paste" user)
-    (36 "B.SilkS" user "B.Silkscreen")
-    (37 "F.SilkS" user "F.Silkscreen")
-    (38 "B.Mask" user)
-    (39 "F.Mask" user)
-    (40 "Dwgs.User" user "User.Drawings")
-    (41 "Cmts.User" user "User.Comments")
-    (42 "Eco1.User" user "User.Eco1")
-    (43 "Eco2.User" user "User.Eco2")
-    (44 "Edge.Cuts" user)
-    (45 "Margin" user)
-    (46 "B.CrtYd" user "B.Courtyard")
-    (47 "F.CrtYd" user "F.Courtyard")
-    (48 "B.Fab" user)
-    (49 "F.Fab" user)
-  )"""
-
-
-def mounting_hole(ref, x, y):
-    return f"""  (footprint "MountingHole:MountingHole_2.7mm_M2.5_Pad" (layer "F.Cu") (uuid {q(uid())}) (at {f(x)} {f(y)})
-    (property "Reference" {q(ref)} (at 0 -4.3 0) (layer "F.SilkS") (uuid {q(uid())}) (effects (font (size 1 1) (thickness 0.15))))
-    (property "Value" "M2.5 isolated" (at 0 4.3 0) (layer "F.Fab") (uuid {q(uid())}) (effects (font (size 1 1) (thickness 0.15))))
-    (attr exclude_from_pos_files exclude_from_bom board_only)
-    (fp_circle (center 0 0) (end 2.75 0) (stroke (width 0.05) (type solid)) (fill none) (layer "F.CrtYd") (uuid {q(uid())}))
-    (fp_circle (center 0 0) (end 2.75 0) (stroke (width 0.05) (type solid)) (fill none) (layer "B.CrtYd") (uuid {q(uid())}))
-    (pad "1" thru_hole circle (at 0 0) (size 5.4 5.4) (drill 2.7) (layers "*.Cu" "*.Mask") (remove_unused_layers no) (uuid {q(uid())}))
-  )"""
-
-
-def build_pcb():
-    notes = [
-        "1. Tools > Update PCB from Schematic (F8)",
-        "2. Run place_footprints.py in the scripting console",
-        "3. In1 = solid GND plane, In2 = solid +24V plane; GND pours on F/B",
-        "4. VIN_RAW/VIN_F pours on B.Cu; Q1 source and Q2 source via arrays",
-    ]
-    out = ["(kicad_pcb (version 20240108) (generator \"pcbnew\") (generator_version \"8.0\")",
-           "  (general (thickness 1.6) (legacy_teardrops no))",
-           '  (paper "A4")',
-           '  (title_block (title "24V CAN heater/fan controller") (rev "A"))',
-           LAYERS,
-           "  (setup (pad_to_mask_clearance 0) (allow_soldermask_bridges_in_footprints no))",
-           '  (net 0 "")',
-           *(mounting_hole(ref, OX + x, OY + y) for ref, (x, y) in HOLES.items()),
-           f"  (gr_rect (start {f(OX)} {f(OY)}) (end {f(OX + BW)} {f(OY + BH)}) (stroke (width 0.1) (type default))"
-           f' (fill none) (layer "Edge.Cuts") (uuid {q(uid())}))']
-    for i, n in enumerate(notes):
-        out.append(f'  (gr_text {q(n)} (at {f(OX)} {f(OY - 12 + i * 2.2)} 0) (layer "Cmts.User") (uuid {q(uid())})'
-                   ' (effects (font (size 1.2 1.2) (thickness 0.15)) (justify left bottom)))')
-    out.append(")")
-    return "\n".join(out) + "\n"
-
-
-# Floorplan (board-relative mm, origin top-left; rot in degrees; side F/B).
-# Taken from the routed board: connectors (J2 centred on the bottom edge), RESET, the BOOT
-# pads and their resistor R4, LEDs and R5/R6, C1, JP1/JP2, the heater FET, its gate driver U7 and
-# pull-down R14, the fan FET Q3 and R15/R16, the fan PTC F2, the 24 V and 3.3 V bulk ceramics
-# (C2, C3, C8), the TH_ADC clamp D6, R11, R18, R22, R23 and C20 on top; everything else on
-# the bottom.
-FLOORPLAN = {
-    "C1": (15.75, 15.9, 0, "F"), "C2": (24.8, 21.35, 0, "F"), "C3": (6.6, 28.8, 0, "F"),
-    "C4": (29.3, 20.9, 90, "B"), "C5": (26.4, 23.2, 180, "B"), "C6": (23.6, 20.3, -90, "B"),
-    "C8": (24.8, 18.6, 0, "F"), "C9": (18.9, 19.93, -90, "B"), "C10": (4, 31, 0, "B"),
-    "C11": (19.92, 19.98, -90, "B"), "C12": (20.94, 19.98, -90, "B"), "C13": (18.9, 22.3, -90, "B"),
-    "C14": (14.1, 21.9, 90, "B"), "C15": (13.95, 19.1, -90, "B"), "C16": (9.9, 20.7, 0, "B"),
-    "C17": (25, 3, 0, "B"), "C19": (11, 22.4, 180, "B"), "C20": (5.6, 19.95, 0, "F"),
-    "C21": (29.3, 27.4, 180, "B"),
-    "D1": (18, 4.6, 90, "B"), "D2": (3.45, 2.75, 0, "B"), "D3": (25.4, 11, 180, "B"),
-    "D4": (9, 14.3, 90, "B"), "D5": (16.75, 31.1, 90, "B"), "D6": (11.8, 21.5, 0, "F"),
-    "D7": (26.4, 16.45, 180, "B"), "D9": (23, 31.5, -90, "B"), "D10": (29.45, 26.05, 180, "B"), "F1": (14.7, 4.6, 90, "B"),
-    "F2": (17.4, 21.5, 0, "F"), "FB1": (21.96, 19.98, 90, "B"), "J1": (8.4, 7.27, 180, "F"),
-    "J2": (19.25, 24.9, -90, "F"), "J5": (25, 3.65, 180, "F"), "JP1": (9.6, 16.6, 90, "F"),
-    "JP2": (4.8, 33, 0, "F"), "JP3": (21.2, 11.9, 0, "F"), "L1": (25.6, 26.8, 0, "B"),
-    "LED1": (24.55, 11, 0, "F"), "LED2": (24.55, 13, 0, "F"), "Q1": (9.7, 3.9, 0, "B"),
-    "Q2": (24.2, 26.4, 180, "F"), "Q3": (7.2, 24.6, 0, "F"), "R1": (1.5, 6, 90, "B"),
-    "R2": (25.9, 13.3, 0, "B"), "R3": (25.9, 14.4, 180, "B"), "R4": (21.85, 14.2, -90, "F"),
-    "R5": (26.7, 10.9, 90, "F"), "R6": (26.7, 13.5, 90, "F"), "R11": (9.6, 12.95, 90, "F"),
-    "R13": (30, 24.2, -90, "B"), "R14": (27.67, 20.5, 90, "F"), "R15": (3.5, 23.4, 0, "F"),
-    "R16": (3.5, 24.8, 0, "F"), "R17": (9.4, 23.6, 0, "B"), "R18": (2, 28.6, 90, "F"),
-    "R19": (12.65, 22.6, 90, "B"), "R20": (27.9, 4.5, 90, "B"), "R21": (22.1, 4.5, 90, "B"),
-    "R22": (1.4, 19.95, 0, "F"), "R23": (3.5, 19.95, 0, "F"), "SW1": (29, 13.4, 90, "F"),
-    "U1": (25.9, 20.3, -90, "B"), "U3": (9.05, 18.2, 180, "B"), "U5": (25, 7.2, 90, "B"),
-    "U6": (18.8, 14.1, 90, "B"), "U7": (28.2, 26.56, 90, "F"), "Y1": (16.5, 20.9, -90, "B"),
-}
-
-
-def build_place_script():
-    staging = {}
-    col = defaultdict(int)
-    blocks = design.BLOCK_ORDER
-    for p in design.PARTS:
-        if p["ref"] in FLOORPLAN:
-            continue
-        b = blocks.index(p["block"])
-        i = col[b]
-        col[b] += 1
-        staging[p["ref"]] = (BW + 8 + i * 4.0, b * 5.0, 0, "F")
-    plan = {**FLOORPLAN, **staging}
-    lines = [
-        '"""Place footprints on the floorplan from the design spec.',
-        "",
-        "Run in KiCad's PCB editor: Tools > Scripting Console, then",
-        "    exec(open('/path/to/place_footprints.py').read())",
-        "Parts in FLOORPLAN go onto the board; the remaining passives are",
-        "staged in a grid to the right of the board, grouped by function.",
-        '"""',
-        "import pcbnew",
-        "",
-        f"OX, OY = {OX}, {OY}",
-        "PLAN = {",
-    ]
-    for ref in sorted(plan, key=lambda r: (r not in FLOORPLAN, r)):
-        lines.append(f"    {ref!r}: {plan[ref]!r},")
-    lines += [
-        "}",
-        "",
-        "board = pcbnew.GetBoard()",
-        "missing = []",
-        "for ref, (x, y, rot, side) in PLAN.items():",
-        "    fp = board.FindFootprintByReference(ref)",
-        "    if fp is None:",
-        "        missing.append(ref)",
-        "        continue",
-        "    pos = pcbnew.VECTOR2I(pcbnew.FromMM(OX + x), pcbnew.FromMM(OY + y))",
-        "    if (side == 'B') != fp.IsFlipped():",
-        "        fp.Flip(fp.GetPosition(), False)",
-        "    fp.SetPosition(pos)",
-        "    fp.SetOrientationDegrees(rot)",
-        "pcbnew.Refresh()",
-        "print('Placed', len(PLAN) - len(missing), 'footprints; not found:', missing)",
-    ]
-    return "\n".join(lines) + "\n"
 
 
 DRU = """(version 1)
@@ -406,12 +278,18 @@ DRU = """(version 1)
   (condition "A.inDiffPair('/USB_D')")
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
+(rule "C15 beside D1"
+  # logic board: the NRST cap, in the MCU corner carried over from the 27 x 36 board, sits under
+  # the TVS's GND end; pads 0.25 mm apart, bodies clear. Wildcards for the panel's C15_n / D1_n
+  # (D1* is only D1 on the logic board; the power board has no C15); DRC tries both orders
+  (condition "A.Reference == 'C15*' && B.Reference == 'D1*'")
+  (constraint courtyard_clearance (min -1mm)))
 """
 
 
-def build_bom():
+def build_bom(parts):
     groups = defaultdict(list)
-    for p in design.PARTS:
+    for p in parts:
         if p["dnp"] or p["fp"] == design.FP["SJ"]:   # solder jumpers are bare copper: nothing to place
             continue
         key = (p["value"], p["fp"].split(":")[-1] if p["fp"] else "ASSIGN", p["lcsc"])
@@ -424,23 +302,38 @@ def build_bom():
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    sch, endpoints, placed = build_schematic()
-    with open(os.path.join(OUT, "toolhead.kicad_sch"), "w") as fh:
-        fh.write(sch)
-    # the PCB and project hold the routed board and its netclasses: starter only
-    pcb = os.path.join(OUT, "toolhead.kicad_pcb")
-    if not os.path.exists(pcb):
-        with open(pcb, "w") as fh:
-            fh.write(build_pcb())
-    with open(os.path.join(OUT, "toolhead.kicad_dru"), "w") as fh:
-        fh.write(DRU)
-    with open(os.path.join(OUT, "place_footprints.py"), "w") as fh:
-        fh.write(build_place_script())
-    pro = {"meta": {"filename": "toolhead.kicad_pro", "version": 1},
-           "sheets": [[ROOT_UUID, "Root"]]}
-    if not os.path.exists(os.path.join(OUT, "toolhead.kicad_pro")):
-        with open(os.path.join(OUT, "toolhead.kicad_pro"), "w") as fh:
-            json.dump(pro, fh, indent=2)
+    for board, (name, _) in design.BOARDS.items():
+        sch, endpoints, placed = build_schematic(board)
+        with open(os.path.join(OUT, name + ".kicad_sch"), "w") as fh:
+            fh.write(sch)
+        with open(os.path.join(OUT, name + ".kicad_dru"), "w") as fh:
+            fh.write(DRU)
+        pro = os.path.join(OUT, name + ".kicad_pro")
+        if not os.path.exists(pro):
+            # the other board's project (or the old single board's) carries the DRC severities
+            # and netclasses; the layout run rewrites the netclasses
+            src = [os.path.join(OUT, n + ".kicad_pro") for n, _ in design.BOARDS.values()] + \
+                  [os.path.join(OUT, "toolhead.kicad_pro")]
+            src = [f for f in src if os.path.exists(f)]
+            d = json.load(open(src[0])) if src else {}
+            d["meta"] = {"filename": name + ".kicad_pro", "version": d.get("meta", {}).get("version", 1)}
+            d["sheets"] = [[root_uuid(board), "Root"]]
+            with open(pro, "w") as fh:
+                json.dump(d, fh, indent=2)
+        with open(os.path.join(OUT, name + "-bom-jlcpcb.csv"), "w", newline="") as fh:
+            csv.writer(fh).writerows(build_bom(design.parts(board)))
+
+        # Connectivity report
+        nets = defaultdict(list)
+        for p in design.parts(board):
+            for pin, net in p["nets"].items():
+                nets[net].append(f"{p['ref']}.{pin}")
+        print(f"{name}: {len(design.parts(board))} parts, {len(nets)} nets, {len(endpoints)} pin endpoints")
+        for net, pins in sorted(nets.items()):
+            if len(pins) < 2:
+                print("  SINGLE-PIN NET:", net, pins)
+    with open(os.path.join(OUT, "bom_jlcpcb.csv"), "w", newline="") as fh:
+        csv.writer(fh).writerows(build_bom(design.PARTS))
     lib_dir = os.path.join(OUT, "footprints", "hotswap_toolhead.pretty")
     os.makedirs(lib_dir, exist_ok=True)
     with open(os.path.join(OUT, "fp-lib-table"), "w") as fh:
@@ -448,18 +341,6 @@ def main():
                  '  (lib (name "hotswap_toolhead") (type "KiCad")'
                  ' (uri "${KIPRJMOD}/footprints/hotswap_toolhead.pretty")'
                  ' (options "") (descr "Project footprints: XT30PW(2+2)-M"))\n)\n')
-    with open(os.path.join(OUT, "bom_jlcpcb.csv"), "w", newline="") as fh:
-        csv.writer(fh).writerows(build_bom())
-
-    # Connectivity report
-    nets = defaultdict(list)
-    for p in design.PARTS:
-        for pin, net in p["nets"].items():
-            nets[net].append(f"{p['ref']}.{pin}")
-    print(f"{len(design.PARTS)} parts, {len(nets)} nets, {len(endpoints)} pin endpoints")
-    for net, pins in sorted(nets.items()):
-        if len(pins) < 2:
-            print("  SINGLE-PIN NET:", net, pins)
 
 
 if __name__ == "__main__":

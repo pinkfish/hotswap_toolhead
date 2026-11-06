@@ -1,7 +1,10 @@
 #!/bin/zsh
-# make_panel.sh - build the 3 x 3 JLCPCB panel from hardware/toolhead.kicad_pcb and its fab files.
+# make_panel.sh - build the JLCPCB panel holding both boards of the stack: 3 columns of 3
+# logic/power pairs (tools/panel_stack.py), 9 of each board, from hardware/toolhead_logic.kicad_pcb
+# and hardware/toolhead_power.kicad_pcb.
 #   hardware/panel/toolhead_panel.kicad_pcb   KiKit panel (frame rails, tooling holes, fiducials, mouse bites)
-#   gerber/panel/                            Gerbers, drill, zip, JLC BOM + CPL (refs R1_0 ... R1_8)
+#   gerber/panel/                            Gerbers, drill, zip, JLC BOM + CPL (refs R1_0, R1_2 ... on
+#                                            the logic boards, C2_1, C2_3 ... on the power boards)
 # Needs KiCad 9 and KiKit (pip install kikit into KiCad's Python).
 set -e
 cd "${0:A:h}/.."
@@ -11,11 +14,14 @@ K=$APP/MacOS/kicad-cli
 P=hardware/panel
 G=gerber/panel
 mkdir -p $P $G
-cp hardware/toolhead.kicad_pro $P/src.kicad_pro
-cp hardware/toolhead.kicad_dru $P/src.kicad_dru
-$PY tools/panel_tabs.py hardware/toolhead.kicad_pcb $P/src.kicad_pcb 2>/dev/null
-$PY -m kikit.ui panelize -p tools/panel.json $P/src.kicad_pcb $P/toolhead_panel.kicad_pcb 2>&1 | grep -v 'Debug: Adding' || true
-rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru
+cp hardware/toolhead_logic.kicad_pro $P/src.kicad_pro
+cp hardware/toolhead_logic.kicad_dru $P/src.kicad_dru
+cp hardware/toolhead_power.kicad_pro $P/src_power.kicad_pro
+cp hardware/toolhead_power.kicad_dru $P/src_power.kicad_dru
+$PY tools/panel_tabs.py hardware/toolhead_logic.kicad_pcb $P/src.kicad_pcb 2>&1 | grep -v -e Debug -e assert -e leak
+$PY tools/panel_tabs.py hardware/toolhead_power.kicad_pcb $P/src_power.kicad_pcb 2>&1 | grep -v -e Debug -e assert -e leak
+$PY -m kikit.ui panelize -p tools/panel.json $P/src.kicad_pcb $P/toolhead_panel.kicad_pcb 2>&1 | grep -v -e 'Debug: Adding' -e leak || true
+rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru $P/src_power.kicad_*
 # KiKit's fiducials and tooling holes (KiKit_FID_*, KiKit_TO_*) and the bare solder-jumper pads
 # (JP1, JP3) have no part to place: keep them out of every BOM and position file, including
 # the Fabrication Toolkit's, which JLCPCB rejects when the CPL names parts the BOM lacks
@@ -29,7 +35,7 @@ for fp in b.GetFootprints():
 pcbnew.SaveBoard(f, b)
 print(n, 'panel footprints excluded from BOM and position files')
 PY
-cp hardware/toolhead.kicad_dru $P/toolhead_panel.kicad_dru
+cp hardware/toolhead_logic.kicad_dru $P/toolhead_panel.kicad_dru
 # H1's and H2's rings are exactly 0.5 mm from the board corners; KiKit's rebuilt outline puts
 # those corners a hair closer, so the panel allows 0.49 mm there
 cat >> $P/toolhead_panel.kicad_dru <<'DRU'
@@ -57,7 +63,7 @@ with open(G + 'toolhead_panel-bom-jlcpcb.csv', 'w', newline='') as fh:
         refs = [x for d in r['Designator'].split(',') for x in sorted(n[d.strip()], key=lambda s: int(s.rsplit('_', 1)[1]))]
         w.writerow([r['Comment'], ','.join(refs), r['Footprint'], r['LCSC Part #']])
 boards = {r['Ref'].rsplit('_', 1)[1] for r in pos}
-print(len(pos), 'placements on', len(boards), 'boards;', len(base), 'parts per board')
+print(len(pos), 'placements on', len(boards), 'boards;', len(base), 'parts per logic + power pair')
 PY
 rm -f $P/pos.csv
 # CPL fitted to JLCPCB's own footprints (see tools/jlc_cpl.py)

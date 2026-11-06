@@ -9,6 +9,7 @@ y up, relative to the footprint origin.
 import csv
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.request
@@ -18,9 +19,18 @@ DB = os.path.join(ROOT, 'tools', 'jlc_footprints.json')
 URL = 'https://lceda.cn/api/products/{}/components?version=6.4.19.5'
 
 
+def get(url):
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        return json.load(urllib.request.urlopen(req, timeout=20))
+    except urllib.error.URLError:
+        # Python builds without the system certificate store (KiCad's): curl uses it
+        return json.loads(subprocess.run(['curl', '-s', '-m', '20', '-A', 'Mozilla/5.0', url],
+                                         capture_output=True, check=True).stdout)
+
+
 def fetch(code):
-    req = urllib.request.Request(URL.format(code), headers={'User-Agent': 'Mozilla/5.0'})
-    d = json.load(urllib.request.urlopen(req, timeout=20))['result']['packageDetail']
+    d = get(URL.format(code))['result']['packageDetail']
     s = d['dataStr']
     ox, oy = float(s['head']['x']), float(s['head']['y'])
     pads = {}

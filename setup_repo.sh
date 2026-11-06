@@ -9,7 +9,7 @@
 #   - if the folder already has files, any file that would be overwritten and
 #     differs is first backed up to .update-backups/<timestamp>/ (git-ignored)
 #   - files you added yourself (e.g. the XT30 footprint) are never deleted
-#   - an existing toolhead.kicad_pcb, toolhead.kicad_pro and fp-lib-table are
+#   - existing board files (toolhead_logic/toolhead_power .kicad_pcb and .kicad_pro) and fp-lib-table are
 #     never replaced, so board layout work and KiCad settings are kept
 #   - creates the GitHub repo only if it doesn't exist; otherwise just pushes
 #
@@ -57,7 +57,7 @@ if [ "$SRC_REAL" != "$DEST_REAL" ]; then
     rel="${f#./}"; dst="$DEST/$rel"
     if [ -f "$dst" ] && cmp -s "$SRC/$rel" "$dst"; then continue; fi
     case "$rel" in                     # your layout and KiCad settings: never replace
-      hardware/toolhead.kicad_pcb|hardware/toolhead.kicad_pro|hardware/fp-lib-table)
+      hardware/toolhead_*.kicad_pcb|hardware/toolhead_*.kicad_pro|hardware/fp-lib-table)
         if [ -f "$dst" ]; then echo "$rel" >> "$SKIPPED"; continue; fi ;;
     esac
     if [ -f "$dst" ]; then            # differs: back up the existing copy first

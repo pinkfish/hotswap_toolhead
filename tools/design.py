@@ -2,8 +2,17 @@
 
 Every part lists its symbol style, footprint (KiCad standard library name),
 value, LCSC number and a {pin_number: net} map. Pins not listed are
-no-connect. The generator builds the schematic, the PCB starter file and the
-BOM from this file, so edit connections here, not in the outputs.
+no-connect. The generator builds the schematics and the BOMs from this file,
+so edit connections here, not in the outputs.
+
+The controller is two stacked boards joined by a 2x6 2.54 mm board-to-board
+link (LINK): the logic board (power and CAN input, protection, MCU, USB,
+thermistor and switch inputs) on top, and the power board (3.3 V buck, heater
+and fan drivers, the load plug) under it. Each part's board is BOARD_OF[block]
+unless the part sets board=. Net names are shared across the link, except the
+thermistor return (TH_RTN on the power board), which is a GND pin of its own
+on the logic board, so heater current in the link's GND pins doesn't shift the
+thermistor reading.
 """
 
 # ---------------------------------------------------------------------------
@@ -51,6 +60,8 @@ XT30_LAYOUT = ([(1, "P+"), (2, "P-")], [(3, "S1"), (4, "S2")])
 CONN2_LAYOUT = ([(1, "1"), (2, "2")], [])
 CONN4_LAYOUT = ([(1, "1"), (2, "2"), (3, "3"), (4, "4")], [])
 # 2x4 plug: each 2-wire load on one column (pins n and n+4 side by side).
+# Board-to-board link, 2x6: odd pins one row, even pins the other.
+CONN12_LAYOUT = ([(n, str(n)) for n in (1, 3, 5, 7, 9, 11)], [(n, str(n)) for n in (2, 4, 6, 8, 10, 12)])
 CONN8_LAYOUT = ([(1, "HEAT+"), (5, "HEAT-"), (2, "FAN+"), (6, "FAN-")],
                 [(3, "THERM"), (7, "TGND"), (4, "SENS"), (8, "GND")])
 # USB-C 16-pin receptacle (USB 2.0): both rows of D+/D- and VBUS/GND, CC per row.
@@ -60,6 +71,17 @@ USBC_LAYOUT = (
     [("A6", "D+"), ("B6", "D+"), ("A7", "D-"), ("B7", "D-"), ("A1", "GND"), ("A12", "GND"),
      ("B1", "GND"), ("B12", "GND"), ("SH", "SHIELD")],
 )
+
+# Link pin: (logic-board net, power-board net). 3 A contacts: two each for +24V and the
+# return; TH_RTN is the thermistor's own return, a GND pin on the logic board.
+LINK = {
+    1: ("+24V", "+24V"), 2: ("+24V", "+24V"),
+    3: ("GND", "GND"), 4: ("GND", "GND"),
+    5: ("VIN_LOGIC", "VIN_LOGIC"), 6: ("+3V3", "+3V3"),
+    7: ("GND", "GND"), 8: ("HEAT_PWM", "HEAT_PWM"),
+    9: ("FAN_PWM", "FAN_PWM"), 10: ("SENS", "SENS"),
+    11: ("TH_SIG", "TH_SIG"), 12: ("GND", "TH_RTN"),
+}
 
 # Footprints (KiCad 8 standard libraries). "" = assign after choosing part.
 FP = {
@@ -93,12 +115,14 @@ FP = {
     "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Right",
     "NANOFIT8": "Connector_Molex:Molex_Nano-Fit_105314-xx08_2x04_P2.50mm_Horizontal",
     "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+    "SOCKET12": "Connector_PinSocket_2.54mm:PinSocket_2x06_P2.54mm_Vertical_SMD",
+    "HEADER12": "Connector_PinHeader_2.54mm:PinHeader_2x06_P2.54mm_Vertical",
 }
 
 
-def P(ref, kind, value, fp, nets, lcsc="", dnp=False, block="", layout=None):
+def P(ref, kind, value, fp, nets, lcsc="", dnp=False, block="", layout=None, board=None):
     return dict(ref=ref, kind=kind, value=value, fp=FP.get(fp, fp), nets=nets,
-                lcsc=lcsc, dnp=dnp, block=block, layout=layout)
+                lcsc=lcsc, dnp=dnp, block=block, layout=layout, board=board)
 
 
 def two(ref, kind, value, fp, n1, n2, **kw):
@@ -119,11 +143,13 @@ PARTS = [
     two("D2", "D", "MMSZ5242B 12V", "SOD123", "+24V", "Q1_G", lcsc="C19077426", block="Power input"),
     two("R1", "R", "10k", "R0402", "Q1_G", "GND", block="Power input"),
     two("C1", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
-    two("C2", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
-    two("C3", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
+    # C2 and C3 sit by the heater and fan FETs, on the power board
+    two("C2", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input", board="power"),
+    two("C3", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input", board="power"),
     # ---------------- Logic supply ----------------
     two("D7", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "+24V", lcsc="C22466354", block="Logic supply"),
-    two("D3", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "VBUS", lcsc="C22466354", block="Logic supply"),
+    # D3 stays by the USB-C on the logic board; VIN_LOGIC crosses the link to the buck
+    two("D3", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "VBUS", lcsc="C22466354", block="Logic supply", board="logic"),
     two("C4", "C", "10uF 50V X5R", "C1206", "VIN_LOGIC", "GND", lcsc="C13585", block="Logic supply"),
     two("C5", "C", "100nF", "C0603", "VIN_LOGIC", "GND", lcsc="C14663", block="Logic supply"),
     P("U1", "box", "LMR16006XDDC", "SOT236",
@@ -139,7 +165,7 @@ PARTS = [
     # ---------------- MCU ----------------
     P("U6", "box", "STM32G0B1CBU6", "QFN48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
-       10: "NRST", 13: "TH_ADC", 14: "SENS_IN", 17: "FAN_PWM", 19: "CAN_RX", 20: "CAN_TX",
+       10: "NRST", 19: "CAN_RX", 20: "CAN_TX", 24: "TH_ADC", 25: "SENS_IN", 28: "FAN_PWM",
        33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
        44: "LED_STAT", 48: "HEAT_PWM", 49: "GND"},
       lcsc="C5270156", block="MCU", layout=STM32_LAYOUT),
@@ -190,7 +216,7 @@ PARTS = [
     # One latching 2x4 right-angle plug for heater, fan, thermistor and a
     # 2-wire switch sensor (7.5 A per contact).
     P("J2", "box", "Heater/fan/therm/sensor (Nano-Fit 2x4)", "NANOFIT8",
-      {1: "+24V", 5: "HEAT_N", 2: "FAN_P", 6: "FAN_N", 3: "TH_SIG", 7: "GND", 4: "SENS", 8: "GND"},
+      {1: "+24V", 5: "HEAT_N", 2: "FAN_P", 6: "FAN_N", 3: "TH_SIG", 7: "TH_RTN", 4: "SENS", 8: "GND"},
       lcsc="C841208", block="Heater", layout=CONN8_LAYOUT),
     # 60 V, 9.5 mR max at 10 V. No 40-60 V FET at JLCPCB is rated below a 4.5 V
     # gate, so U7 drives it from a 12 V zener rail instead of the 3.3 V MCU pin.
@@ -232,6 +258,13 @@ PARTS = [
     two("R22", "R", "10k", "R0402", "+3V3", "SENS", block="Sensor"),
     two("R23", "R", "1k", "R0402", "SENS", "SENS_IN", block="Sensor"),
     two("C20", "C", "100nF", "C0402", "SENS_IN", "GND", lcsc="C1525", block="Sensor"),
+    # ---------------- Board-to-board link ----------------
+    # SMD socket on the logic board's underside, through-hole header on the power board's top;
+    # 8.5 mm socket + 2.5 mm header spacer = 11 mm between the boards (M2.5 x 11 standoffs)
+    P("J3", "box", "Link socket 2x6 (HC-PM254-8.5H-2x6PS)", "SOCKET12",
+      {n: nets[0] for n, nets in LINK.items()}, lcsc="C22373947", block="Link", layout=CONN12_LAYOUT, board="logic"),
+    P("J4", "box", "Link header 2x6 (HX PZ2.54-2x6P ZZ)", "HEADER12",
+      {n: nets[1] for n, nets in LINK.items()}, lcsc="C32713279", block="Link", layout=CONN12_LAYOUT, board="power"),
 ]
 
 # LCSC numbers were checked against JLCPCB's part search (stock and type) in
@@ -240,4 +273,15 @@ for p in PARTS:
     if p["kind"] == "R" and p["fp"].endswith("R_0402_1005Metric") and not p["lcsc"]:
         p["lcsc"] = {"0R": "C17168", "1k": "C11702", "10k": "C25744"}.get(p["value"], "")
 
-BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Fan", "Thermistor", "Sensor"]
+BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Fan", "Thermistor", "Sensor", "Link"]
+BOARD_OF = {"Power input": "logic", "Logic supply": "power", "MCU": "logic", "CAN": "logic", "USB": "logic",
+            "Heater": "power", "Fan": "power", "Thermistor": "logic", "Sensor": "logic"}
+# board: KiCad project name in hardware/, title
+BOARDS = {"logic": ("toolhead_logic", "24V CAN heater/fan controller - logic board"),
+          "power": ("toolhead_power", "24V CAN heater/fan controller - power board")}
+for p in PARTS:
+    p["board"] = p["board"] or BOARD_OF[p["block"]]
+
+
+def parts(board):
+    return [p for p in PARTS if p["board"] == board]

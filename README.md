@@ -2,7 +2,7 @@
 
 A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan (≤0.5 A) and one thermistor input (100k NTC or PT1000), with USB-C for programming and debugging. Runs Klipper with the Katapult bootloader on an STM32G0B1.
 
-- **Board:** 27 × 36 mm, 4-layer (In1 GND plane, In2 +24V plane), two M2.5 heat-set-insert holes; connectors, the RESET button, LEDs, both FETs and the bulk capacitors on top, everything else on the bottom
+- **Boards:** two stacked 27 × 27 mm, 4-layer boards joined by a 2×6 2.54 mm board-to-board connector, 11 mm apart on two M2.5 standoffs. The logic board (on top) carries the power and CAN input, protection, MCU, CAN, USB and sensor inputs; the power board (underneath) the 3.3 V buck, the heater and fan drivers and the load plug. 25% less footprint than the single 27 × 36 mm board (branch `narrow-27`), about 12.6 mm more height
 - **Input:** XT30(2+2) – 24 V power plus CAN on one connector
 - **Protection:** fuse, bidirectional TVS, reverse-polarity FET, ±58 V-tolerant CAN transceiver, fan PTC
 - **Programming:** USB alone powers the logic, no 24 V needed
@@ -12,19 +12,19 @@ A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan
 | Folder | Contents |
 | --- | --- |
 | `docs/` | Design spec (`design_spec.md`) and schematic overview |
-| `hardware/` | KiCad project: schematic, routed PCB, design rules, placement script, JLCPCB BOM |
-| `gerber/` | Fab outputs from the routed PCB: 4-layer gerbers, drill files, JLCPCB BOM and CPL; `gerber/panel/` is the 3 × 3 panel (`tools/make_panel.sh`), the one to order: see `gerber/README.md` |
-| `tools/` | Python source for the KiCad files: `design.py` is the netlist, `gen_kicad.py` builds the files, `verify.py` checks connectivity; `fab.sh` regenerates `gerber/`; `layout/` holds the placement and routing scripts (see `tools/layout/README.md`) |
+| `hardware/` | KiCad projects for both boards (`toolhead_logic`, `toolhead_power`): schematics, routed PCBs, design rules, JLCPCB BOMs; `panel/` is the panel with both |
+| `gerber/` | Fab outputs: `logic/` and `power/` per board (4-layer gerbers, drill files, JLCPCB BOM and CPL), and `panel/`, the panel with 9 of each (`tools/make_panel.sh`), the one to order: see `gerber/README.md` |
+| `tools/` | Python source for the KiCad files: `design.py` is the netlist of both boards and the link between them, `gen_kicad.py` builds the files, `verify.py` checks connectivity, `check_stack.py` checks that the boards line up; `fab.sh` regenerates `gerber/logic` and `gerber/power`; `layout/` holds the placement and routing scripts (see `tools/layout/README.md`) |
 
 ## Status
 
-Schematic complete and PCB routed: DRC clean (0 errors, 0 unconnected, schematic parity clean) with the custom rules in `hardware/toolhead.kicad_dru`. Not yet built or tested. Before ordering, work through **Before ordering** in `hardware/README.md`: several values and part numbers are still placeholders.
+Schematics complete and both PCBs routed: DRC clean (0 errors, 0 unconnected, schematic parity clean) with the custom rules in `hardware/toolhead_*.kicad_dru`, and `tools/check_stack.py` confirms the outlines, holes and the twelve link pins line up. The panel builds with 0 DRC errors. Not yet built or tested. Before ordering, work through **Before ordering** in `hardware/README.md`: several values and part numbers are still placeholders.
 
 ## Regenerating the KiCad files
 
 ```
 python3 tools/gen_kicad.py   # rebuilds hardware/ from tools/design.py
-python3 tools/verify.py      # re-parses the schematic and checks every pin's net
+python3 tools/verify.py      # re-parses both schematics, checks every pin's net and the link
 ```
 
-Running the generator overwrites `hardware/toolhead.kicad_sch`, the BOM, the design rules and `place_footprints.py`. It writes `hardware/toolhead.kicad_pcb` and `toolhead.kicad_pro` only when they are missing, so it never touches the routed board or its netclasses. After a netlist change, regenerate, then run **Update PCB from Schematic** in KiCad and fix up the routing by hand.
+Running the generator overwrites both boards' schematics (`hardware/toolhead_logic.kicad_sch`, `toolhead_power.kicad_sch`), BOMs and design rules. It writes each `.kicad_pro` only when it is missing and never touches the routed boards. After a netlist change, regenerate, then either run **Update PCB from Schematic** in KiCad and fix up the routing by hand, or re-run the layout (`tools/layout/run_stack.sh`). Then `python3 tools/check_stack.py` (with KiCad's Python) to confirm the boards still stack.
