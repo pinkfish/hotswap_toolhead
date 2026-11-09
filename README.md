@@ -12,8 +12,8 @@ A small 24 V CAN toolhead board for 3D printers: one heater (60–72 W), one fan
 | Folder | Contents |
 | --- | --- |
 | `docs/` | Design spec (`design_spec.md`) and schematic overview |
-| `hardware/` | KiCad projects for both boards (`toolhead_logic`, `toolhead_power`): schematics, routed PCBs, design rules, JLCPCB BOMs; `panel/` is the panel with both |
-| `gerber/` | Fab outputs: `logic/` and `power/` per board (4-layer gerbers, drill files, JLCPCB BOM and CPL), and `panel/`, the panel with 9 of each (`tools/make_panel.sh`), the one to order: see `gerber/README.md` |
+| `hardware/` | KiCad projects for both boards (`toolhead_logic`, `toolhead_power`): schematics, routed PCBs, design rules, JLCPCB BOMs; `panel/`, `panel6/` and `panel4/` are the panels with both |
+| `gerber/` | Fab outputs: `logic/` and `power/` per board (4-layer gerbers, drill files, JLCPCB BOM and CPL), and the panels to order (`tools/make_panel.sh`): `panel/` with 9 of each, `panel6/` with 6, `panel4/` with 4: see `gerber/README.md` |
 | `tools/` | Python source for the KiCad files: `design.py` is the netlist of both boards and the link between them, `gen_kicad.py` builds the files, `verify.py` checks connectivity, `check_stack.py` checks that the boards line up; `fab.sh` regenerates `gerber/logic` and `gerber/power`; `layout/` holds the placement and routing scripts (see `tools/layout/README.md`) |
 
 ## Status
