@@ -92,7 +92,7 @@ FP = {
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
     "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Right",
     "NANOFIT8": "Connector_Molex:Molex_Nano-Fit_105314-xx08_2x04_P2.50mm_Horizontal",
-    "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
+    "USBC16": "hotswap_toolhead:USB-C_TYPE-C-16P-LTH6.8",  # vertical, 6.8 mm tall
 }
 
 
@@ -108,9 +108,9 @@ def two(ref, kind, value, fp, n1, n2, **kw):
 # Diodes and LEDs follow the KiCad footprint convention: pad 1 = cathode.
 PARTS = [
     # ---------------- Power input ----------------
-    P("J1", "box", "XT30PW(2+2)-M.G.B", "hotswap_toolhead:XT30PW-2+2-M",
+    P("J1", "box", "XT30PB(2+2)-M.G.B", "hotswap_toolhead:XT30PB-2+2-M",
       {1: "VIN_RAW", 2: "GND", 3: "CAN_H", 4: "CAN_L"},
-      lcsc="C19268030", block="Power input", layout=XT30_LAYOUT),
+      lcsc="C19268029", block="Power input", layout=XT30_LAYOUT),
     two("F1", "R", "6A 1206 fuse (BSMD1206C-1600T)", "F1206", "VIN_RAW", "VIN_F", lcsc="C49328461", block="Power input"),
     two("D1", "D", "SMF33CA", "SOD123F", "VIN_F", "GND", lcsc="C19077520", block="Power input"),
     P("Q1", "box", "SQJ461EP-T1_GE3", "PPAKSO8",
@@ -174,11 +174,11 @@ PARTS = [
       lcsc="C31542495", block="CAN", layout=CAN_LAYOUT),
     two("C16", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="CAN"),
     # ---------------- USB ----------------
-    P("J5", "box", "USB-C (HRO TYPE-C-31-M-12)", "USBC16",
+    P("J5", "box", "USB-C vertical (TYPE-C 16P LTH6.8)", "USBC16",
       {"A4": "VBUS", "A9": "VBUS", "B4": "VBUS", "B9": "VBUS", "A5": "USB_CC1", "B5": "USB_CC2",
        "A6": "USB_D_P", "B6": "USB_D_P", "A7": "USB_D_N", "B7": "USB_D_N",
        "A1": "GND", "A12": "GND", "B1": "GND", "B12": "GND", "SH": "GND"},
-      lcsc="C165948", block="USB", layout=USBC_LAYOUT),
+      lcsc="C5187468", block="USB", layout=USBC_LAYOUT),
     # 5.1k pull-downs on CC1/CC2 so a USB-C host or charger turns VBUS on.
     two("R20", "R", "5.1k", "R0402", "USB_CC1", "GND", lcsc="C25905", block="USB"),
     two("R21", "R", "5.1k", "R0402", "USB_CC2", "GND", lcsc="C25905", block="USB"),

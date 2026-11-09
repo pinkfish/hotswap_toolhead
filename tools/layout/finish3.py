@@ -35,18 +35,19 @@ def rect(x0, y0, x1, y1):
     return ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
 
 
-# heater drain: a top-layer HEAT_N pour around J2 pin 2 and Q2's drain tab,
+# heater drain: a top-layer HEAT_N pour around J2's HEATER- pin and Q2's drain tab,
 # sized from where those pads ended up.  Solid connection so the tab sinks heat.
 pads = [p for f in b.GetFootprints() for p in f.Pads() if p.GetNetname() == '/HEAT_N']
-bb = pads[0].GetBoundingBox()
-for p in pads[1:]:
-    bb.Merge(p.GetBoundingBox())
-m = mm(1.2)
-x0, y0, x1, y1 = [pcbnew.ToMM(v) - o for v, o in ((bb.GetLeft() - m, OX), (bb.GetTop() - m, OY), (bb.GetRight() + m, OX), (bb.GetBottom() + m, OY))]
-q2 = b.FindFootprintByReference('Q2')
-z = zone('/HEAT_N', pcbnew.B_Cu if q2.IsFlipped() else pcbnew.F_Cu, rect(x0, y0, x1, y1), 2)
-z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
-print('HEAT_N pour %.1f x %.1f mm' % (x1 - x0, y1 - y0))
+if pads:   # the power board; the logic board has no heater
+    bb = pads[0].GetBoundingBox()
+    for p in pads[1:]:
+        bb.Merge(p.GetBoundingBox())
+    m = mm(1.2)
+    x0, y0, x1, y1 = [pcbnew.ToMM(v) - o for v, o in ((bb.GetLeft() - m, OX), (bb.GetTop() - m, OY), (bb.GetRight() + m, OX), (bb.GetBottom() + m, OY))]
+    q2 = b.FindFootprintByReference('Q2')
+    z = zone('/HEAT_N', pcbnew.B_Cu if q2.IsFlipped() else pcbnew.F_Cu, rect(x0, y0, x1, y1), 2)
+    z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+    print('HEAT_N pour %.1f x %.1f mm' % (x1 - x0, y1 - y0))
 
 e = b.GetBoardEdgesBoundingBox()
 W, H = pcbnew.ToMM(e.GetWidth()), pcbnew.ToMM(e.GetHeight())

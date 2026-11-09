@@ -1,5 +1,8 @@
 """Add the inner planes (In1 = GND, In2 = +24V, whole board) and fan out every
 SMD pad on those nets to a via, so the autorouter never has to route them.
+V24_TOP (the logic board, where +24V only crosses the top edge): +24V is a top-layer pour with
+this outline (board mm "x,y;x,y;...") instead, its bottom-side pads get vias inside it, and In2
+is left to the router.
     planes_fanout.py board.kicad_pcb
 Fanout tracks and vias are locked so Freerouting keeps them.
 """
@@ -13,13 +16,25 @@ b = pcbnew.LoadBoard(sys.argv[1])
 e = b.GetBoardEdgesBoundingBox()
 import os
 PLANES = {'/GND': pcbnew.In1_Cu}
-if os.environ.get('V24_PLANE'):
+# IN2_SPLIT: In2 is a +24V strip (this outline, board mm "x,y;x,y;...") with +3V3 on the rest;
+# a fanout via for either net must land inside its own zone
+SPLIT = [tuple(map(float, q.split(','))) for q in os.environ.get('IN2_SPLIT', '').split(';') if q]
+OUTLINE = {}
+TOP = [tuple(map(float, q.split(','))) for q in os.environ.get('V24_TOP', '').split(';') if q]
+if SPLIT:
+    PLANES['/+24V'] = PLANES['/+3V3'] = pcbnew.In2_Cu
+    OUTLINE['/+24V'] = SPLIT
+elif TOP:
+    PLANES['/+24V'] = pcbnew.F_Cu
+    OUTLINE['/+24V'] = TOP
+    b.SetLayerType(pcbnew.In2_Cu, pcbnew.LT_SIGNAL)   # In2 routed
+elif os.environ.get('V24_PLANE'):
     PLANES['/+24V'] = pcbnew.In2_Cu
 else:
     b.SetLayerType(pcbnew.In2_Cu, pcbnew.LT_SIGNAL)   # In2 routed
 # per-net fanout track width and via (diameter, drill); FAN_SMALL is tried where the +24V size
 # finds no room (small parts: a 0.6 mm via still carries well over the 0.5 A fan or buck input)
-FAN = {'/GND': (0.3, 0.6, 0.3), '/+24V': (0.8, 0.8, 0.4)}
+FAN = {'/GND': (0.3, 0.6, 0.3), '/+24V': (0.8, 0.8, 0.4), '/+3V3': (0.3, 0.6, 0.3)}
 FAN_SMALL = (0.8, 0.6, 0.3)   # the stub keeps the high-current class width
 VIA_D, VIA_DRILL, CLR, TRACK = 0.6, 0.3, 0.2, 0.3
 EDGE = 0.55 + VIA_D / 2   # edge bbox includes half the 0.1 mm outline
@@ -39,10 +54,21 @@ for net, layer in ([] if ONLY else PLANES.items()):
     z.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
     o = z.Outline()
     o.NewOutline()
-    for x, y in ((e.GetLeft(), e.GetTop()), (e.GetRight(), e.GetTop()),
-                 (e.GetRight(), e.GetBottom()), (e.GetLeft(), e.GetBottom())):
-        o.Append(x, y)
+    if net in OUTLINE:
+        z.SetAssignedPriority(1)   # wins over the +3V3 zone (IN2_SPLIT) or the GND pour (V24_TOP)
+        for x, y in OUTLINE[net]:
+            o.Append(e.GetLeft() + mm(x), e.GetTop() + mm(y))
+    else:
+        for x, y in ((e.GetLeft(), e.GetTop()), (e.GetRight(), e.GetTop()),
+                     (e.GetRight(), e.GetBottom()), (e.GetLeft(), e.GetBottom())):
+            o.Append(x, y)
     b.Add(z)
+SPLIT_SHAPE = None
+if SPLIT or TOP:
+    SPLIT_SHAPE = pcbnew.SHAPE_LINE_CHAIN()
+    for x, y in SPLIT or TOP:
+        SPLIT_SHAPE.Append(e.GetLeft() + mm(x), e.GetTop() + mm(y))
+    SPLIT_SHAPE.SetClosed(True)
 
 # keep-outs: rule areas around the mounting holes
 keepouts = [z for z in b.Zones() if z.GetIsRuleArea()]   # each checked for what it forbids
@@ -62,6 +88,11 @@ def legal_via(pos, net):
     if not (e.GetLeft() + mm(EDGE) < pos.x < e.GetRight() - mm(EDGE) and
             e.GetTop() + mm(EDGE) < pos.y < e.GetBottom() - mm(EDGE)):
         return False
+    if SPLIT_SHAPE and net in PLANES and net in ('/+24V', '/+3V3'):
+        # inside its own zone, clear of the 0.3 mm split by the via's thermal spokes
+        if SPLIT_SHAPE.PointInside(pos) != (net == '/+24V') or \
+                min(SPLIT_SHAPE.CSegment(i).Distance(pos) for i in range(SPLIT_SHAPE.SegmentCount())) < mm(VIA_D / 2 + 0.45):
+            return False
     for k in keepouts:
         if k.GetDoNotAllowVias() and k.Outline().Collide(pos, mm(VIA_D / 2)):
             return False
@@ -138,7 +169,7 @@ for f in b.GetFootprints():
         continue
     for p in f.Pads():
         net = p.GetNetname()
-        if net not in PLANES or p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD:
+        if net not in PLANES or p.GetAttribute() != pcbnew.PAD_ATTRIB_SMD or p.IsOnLayer(PLANES[net]):
             continue
         # SKIP_ROUTED: a pad that block copper (blocks.py) already ties to a via keeps that
         if os.environ.get('SKIP_ROUTED') and reaches_via(p, net):

@@ -3,7 +3,8 @@ import pcbnew, sys, re
 pcb = sys.argv[1]; dsn = pcb.replace('.kicad_pcb', '.dsn'); inset = 300  # um
 b = pcbnew.LoadBoard(pcb)
 for n in ('/+24V', '/FAN_N', '/GND', '/USB_D_P'):
-    print(n, b.FindNet(n).GetNetClassName())
+    if b.FindNet(n):
+        print(n, b.FindNet(n).GetNetClassName())
 assert pcbnew.ExportSpecctraDSN(b, dsn)
 s = open(dsn).read()
 m = re.search(r'\(boundary\s*\(path pcb 0\s+([-\d.\s]+)\)', s)

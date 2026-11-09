@@ -11,6 +11,7 @@ stitching), are removed, as are all zones: the router and the pour scripts redo 
 no block stay where they are for place.py to place. declash.py then removes any kept copper
 that conflicts with the new placement.
 """
+import os
 import subprocess
 import sys
 
@@ -56,6 +57,13 @@ JUMPERS = ('SW1',)
 # courtyards cut to the pads plus this (mm): the fan fuse's 0.25 mm margin overlaps J2's below it,
 # though the 1812 body is inside its pads and J2's housing starts 0.3 mm below them
 CRTYD_PADS = {'F2': 0.05}
+# library folders by nickname, for SWAP parts outside KiCad's own libraries
+LIBDIR = {'hotswap_toolhead': os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           '../../hardware/footprints/hotswap_toolhead.pretty')}
+# BLOCKS_FILE: another layout's blocks, swaps and keep-out (USB_KEEPOUT None for none), in place
+# of the ones above
+if os.environ.get('BLOCKS_FILE'):
+    exec(open(os.environ['BLOCKS_FILE']).read())
 
 
 def swap_parts(src, dst):
@@ -67,7 +75,7 @@ def swap_parts(src, dst):
         old = b.FindFootprintByReference(ref)
         if old.GetFPIDAsString() == f"{lib}:{name}":
             continue
-        new = io.FootprintLoad(f'{KLIB}/{lib}.pretty', name)
+        new = io.FootprintLoad(LIBDIR.get(lib, f'{KLIB}/{lib}.pretty'), name)
         new.SetFPID(pcbnew.LIB_ID(lib, name))
         new.SetParent(b)
         new.SetReference(ref)
@@ -221,22 +229,23 @@ def main(src, dst):
         b.Remove(z)
     # no F.Cu tracks under the USB-C receptacle's body, ahead of its pad row (usb_pre.py's
     # keep-out, moved with the connector); the GND pour may still fill it
-    k = pcbnew.ZONE(b)
-    k.SetIsRuleArea(True)
-    ls = pcbnew.LSET()
-    ls.AddLayer(pcbnew.F_Cu)
-    k.SetLayerSet(ls)
-    k.SetDoNotAllowTracks(True)
-    k.SetDoNotAllowVias(False)
-    k.SetDoNotAllowZoneFills(False)
-    k.SetDoNotAllowPads(False)
-    k.SetDoNotAllowFootprints(False)
-    k.SetZoneName('USB-C body keep-out')
-    o = k.Outline()
-    o.NewOutline()
-    for x, y in USB_KEEPOUT:
-        o.Append(mm(O + x), mm(O + y))
-    b.Add(k)
+    if USB_KEEPOUT:
+        k = pcbnew.ZONE(b)
+        k.SetIsRuleArea(True)
+        ls = pcbnew.LSET()
+        ls.AddLayer(pcbnew.F_Cu)
+        k.SetLayerSet(ls)
+        k.SetDoNotAllowTracks(True)
+        k.SetDoNotAllowVias(False)
+        k.SetDoNotAllowZoneFills(False)
+        k.SetDoNotAllowPads(False)
+        k.SetDoNotAllowFootprints(False)
+        k.SetZoneName('USB-C body keep-out')
+        o = k.Outline()
+        o.NewOutline()
+        for x, y in USB_KEEPOUT:
+            o.Append(mm(O + x), mm(O + y))
+        b.Add(k)
     pcbnew.SaveBoard(dst, b)
     print('kept copper per block', kept, 'removed', len(drop))
 

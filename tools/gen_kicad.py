@@ -225,7 +225,7 @@ def build_schematic():
     notes = [
         "24 V CAN heater/fan controller - generated from design.py. Each pin connects through a net label.",
         "U1 is TI LMR16006X (SOT-23-6): pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. D9 is its catch diode.",
-        "J1 uses hotswap_toolhead:XT30PW-2+2-M: put the SnapEDA (or LCSC C19268030) footprint in footprints/hotswap_toolhead.pretty under that name.",
+        "J1 (XT30PB-2+2-M) and J5 (USB-C_TYPE-C-16P-LTH6.8) use footprints from the project library, footprints/hotswap_toolhead.pretty.",
         "U3 pin 5 is TCAN3414 SHDN: left open (internal pull-down keeps the transceiver on).",
         "Verify U6 pins against ST DS13560 (STM32G0B1 LQFP-48 pinout) before layout.",
     ]
@@ -447,7 +447,7 @@ def main():
         fh.write('(fp_lib_table\n  (version 7)\n'
                  '  (lib (name "hotswap_toolhead") (type "KiCad")'
                  ' (uri "${KIPRJMOD}/footprints/hotswap_toolhead.pretty")'
-                 ' (options "") (descr "Project footprints: XT30PW(2+2)-M"))\n)\n')
+                 ' (options "") (descr "Project footprints: vertical XT30PB(2+2)-M and USB-C, AOS DFN-8"))\n)\n')
     with open(os.path.join(OUT, "bom_jlcpcb.csv"), "w", newline="") as fh:
         csv.writer(fh).writerows(build_bom())
 
