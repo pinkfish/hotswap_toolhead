@@ -65,7 +65,16 @@ Freerouting 1.9.0 isn't deterministic here: the same pre-route board gives diffe
 | `declash.py` | Removes moved block copper that DRC reports in a clash with the new placement, then copper left touching no pad; in a clash with a `narrow_pre.py` pre-route only the other copper goes |
 | `narrow_pre.py` | `run_narrow.sh` pre-routes, grouped so `declash.py` keeps them: FAN_P to D5 round J2, D7's +24V via, LED_STAT and the LED anodes, R5's +3V3 to R2, F2's +24V via, HEAT_PWM to U7 and R14, NRST over C8 to SW1, VREFP out of its decoupling and back west between C8 and F2, U6's +3V3 vias to C8, FB1's +3V3 to L1, C8's GND via, FAN_PWM round the CAN pair to R15, CAN_L to U3 |
 | `island_vias.py` | A GND via in each F/B GND pour island that has none (an island boxed in by tracks counts as unconnected) |
+| `add_vias.py` | Stitches a net between layers with as many vias as fit in a region: each candidate on a grid must sit inside the net's pours on two layers, off every SMD pad and 0.3 mm clear of other holes, and pass DRC (errors and warnings) |
 | `gate_driver.py` | Applied once to the 31 mm board, after the run: adds the heater gate driver U7 beside Q2 and its 12 V rail (R13 from VIN_LOGIC, D10, C21) underneath, moves R14 up beside C2, and re-routes HEAT_PWM round U7 to IN+ |
+
+## Done after the run on the stack boards, for a 100 W heater
+
+`run_stack.sh`'s boards carried the 72 W heater. For 100 W (4.7 A with the fan) the heater path was checked with `tools/current/check_heater.sh` and these changes were made to the routed boards:
+
+- Logic board: CAN_L's top-layer run from J1 pin 4 round the top of J1's GND pin cut the top +24V pour in two, so Q1's current took one via, a 0.8 mm In2 track and a second via (9.4 mΩ, 0.2 W). That run was deleted and `maze.py` (`ONLY=/CAN_L`) re-routed it on In2 to a via right of J1's + pin; the In2 +24V detour went with it. `add_vias.py` added two vias from Q1's bottom +24V pour up to the top pour, and two beside each of J3's +24V pads, each pad now in a small bottom-layer +24V pour (priority 4, solid). Result: 2.7 mΩ.
+- Power board: J4 pins 1–4 and J2 pins 1 and 5 set to a solid zone connection; a top-layer GND pour (priority 3) round Q2's source pins, joining the main top GND pour, with one more `add_vias.py` GND via; the HEAT_N pour's bottom edge moved from 21.25 to 22.2 mm and its top-layer track to J2 widened to 1.2 mm.
+- F1's value and LCSC number on the logic board changed to the 8 A fuse (same footprint).
 
 ## Done by hand on the single 27 × 36 board (branch `narrow-27`)
 

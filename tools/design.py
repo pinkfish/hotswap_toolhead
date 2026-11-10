@@ -72,8 +72,9 @@ USBC_LAYOUT = (
      ("B1", "GND"), ("B12", "GND"), ("SH", "SHIELD")],
 )
 
-# Link pin: (logic-board net, power-board net). 3 A contacts: two each for +24V and the
-# return; TH_RTN is the thermistor's own return, a GND pin on the logic board.
+# Link pin: (logic-board net, power-board net). 3 A contacts: two for +24V (2.35 A each with a
+# 100 W heater and the fan), three for the return; TH_RTN is the thermistor's own return, a GND
+# pin on the logic board.
 LINK = {
     1: ("+24V", "+24V"), 2: ("+24V", "+24V"),
     3: ("GND", "GND"), 4: ("GND", "GND"),
@@ -135,7 +136,7 @@ PARTS = [
     P("J1", "box", "XT30PW(2+2)-M.G.B", "hotswap_toolhead:XT30PW-2+2-M",
       {1: "VIN_RAW", 2: "GND", 3: "CAN_H", 4: "CAN_L"},
       lcsc="C19268030", block="Power input", layout=XT30_LAYOUT),
-    two("F1", "R", "6A 1206 fuse (BSMD1206C-1600T)", "F1206", "VIN_RAW", "VIN_F", lcsc="C49328461", block="Power input"),
+    two("F1", "R", "8A 1206 fuse (0458008.DR)", "F1206", "VIN_RAW", "VIN_F", lcsc="C187562", block="Power input"),
     two("D1", "D", "SMF33CA", "SOD123F", "VIN_F", "GND", lcsc="C19077520", block="Power input"),
     P("Q1", "box", "SQJ461EP-T1_GE3", "PPAKSO8",
       {1: "+24V", 2: "+24V", 3: "+24V", 4: "Q1_G", 5: "VIN_F"},
