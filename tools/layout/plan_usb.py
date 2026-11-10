@@ -1,47 +1,54 @@
-# Placement plan for the USB board (BW=22, BH=30), read by place.py through PLAN_FILE.
-# Board mm from the top-left, seen from the top.
-#  - USB-C (J5) centred on the top edge, plug pointing up; the JST-PH plug (J2) centred on the
-#    bottom edge, plug pointing down. The two M2.5 holes sit at the side edges between them
-#  - RESET on the right edge beside the USB-C, the LEDs in the corner left of it
+# Placement plan for the USB board (BW=18, BH=23.5), read by place.py through PLAN_FILE.
+# Board mm from the top-left, seen from the top. No mounting holes.
+#  - USB-C (J5) centred on the top edge, plug pointing up; the JST-SH plug (J2) centred on the
+#    bottom edge, plug pointing down, its hold-down pads 0.5 mm in from the edge
+#  - the LEDs and their resistors right of the USB-C; RESET on the right edge in the
+#    band between the connectors
 #  - U6 on the bottom in the middle (U6_AT in run_usb.sh), turned so its USB pins (33/34) face
 #    J5; its crystal and decoupling strip (the stack's routed corner, corner_import.py) runs
-#    along below it. J2's 5 mm long top-side pads must stay clear of the strip's vias, which
-#    sets the board's height
-#  - top, in the band between the connectors: BOOT pads, the PT1000 jumper and the thermistor
-#    divider and filter
-#  - bottom: USB ESD and VBUS cap under J5, CC pull-downs left of it; the fan FET, flyback diode
-#    and gate resistors in the left column under J2's fan pins; the LDO and the switch filter in
-#    the right column; the fan PTC and thermistor clamp below the corner strip
+#    along below it, under J2. Each side's parts follow U6's pins: SWCLK and LED_STAT on its
+#    right, the thermistor, switch and fan inputs on its left
+#  - top, in the band between the connectors, left to right: the fan FET and gate resistors
+#    over J2's fan pins, the thermistor divider and filter, its clamp. Beside J2: the fan's
+#    flyback diode by the fan pins (left), the switch filter by the switch pin (right)
+#  - bottom: USB ESD and VBUS cap under J5, the +3V3 bulk cap above it; the fan PTC, a CC
+#    pull-down and the PT1000 jumper down the left column (4.4 mm wide beside U6's pins); the
+#    other CC pull-down, the VBUS cap, the BOOT pads and resistor and the LDO's caps down
+#    the right, the LDO below
+W2 = W / 2
 ESCAPE = {'U6': (0.4, 0.4, 0.4, 0.4)}
 PLAN = {
-    'H1': (3.2, 12.7, 0, 'F', 1), 'H2': (W - 3.2, 12.7, 0, 'F', 1),
-    'J5': (W / 2, 3.65, 180, 'F', 1),
-    # hold-down pads 0.5 mm in from the edge; 0.53 mm left of centre so the corner strip's GND via
-    # under it falls in the gap between pins 3 and 4
-    'J2': (W / 2 - 0.53, H - 5.1, 0, 'F', 1),
-    'SW1': (W - 2.0, 4.4, 90, 'F', 1),
+    'J5': (W2, 3.65, 180, 'F', 1),
+    # 0.35 mm right of centre and 23.5 mm down, so its pad row clears the corner strip's vias
+    # (a via between two 1 mm pitch pads doesn't fit) and its right hold-down pad the GND via by C12
+    'J2': (W2 + 0.35, H - 3.3, 0, 'F', 1),
+    'SW1': (W - 2.0, 14.0, 90, 'F', 1),
     'U6': (None, None, None, 'B', 1),
     'Y1': (None, None, None, 'B', 1), 'C13': (None, None, None, 'B', 1), 'C14': (None, None, None, 'B', 1),
     'C9': (None, None, None, 'B', 1), 'C11': (None, None, None, 'B', 1), 'C12': (None, None, None, 'B', 1),
     'FB1': (None, None, None, 'B', 1), 'C15': (None, None, None, 'B', 1),
     # ---- bottom
-    'U5': (W / 2, 5.4, 90, 'B', 0), 'C17': (W - 4.4, 7.6, 90, 'B', 0),
-    'R20': (4.4, 6.6, 90, 'B', 0), 'R21': (3.4, 6.6, 90, 'B', 0),
-    # fan, left column
-    'Q3': (2.9, 17.8, None, 'B', 0), 'D5': (2.0, H - 3.4, 90, 'B', 0),
-    'R15': (4.9, H - 4.6, 90, 'B', 0), 'R16': (4.9, H - 2.4, 90, 'B', 0),
-    # below the corner strip, past the end of J2's pads (no vias may go under those)
-    'F2': (8.6, H - 1.8, 0, 'B', 0), 'D6': (12.8, H - 2.0, None, 'B', 0),
-    # LDO and switch filter, right column
-    'U1': (W - 3.4, 18.6, 90, 'B', 0), 'C4': (W - 0.9, 17.2, 90, 'B', 0), 'C8': (W - 0.9, 19.6, 90, 'B', 0),
-    'C10': (W - 6.0, 22.4, 0, 'B', 0),
-    'R22': (W - 5.0, H - 1.4, 0, 'B', 0), 'R23': (W - 2.6, H - 1.4, 0, 'B', 0), 'C20': (W - 0.9, H - 3.6, 90, 'B', 0),
+    'U5': (W2, 5.4, 90, 'B', 0), 'C17': (W2 + 6.6, 7.0, 90, 'B', 1),
+    # +3V3 bulk cap in the strip between J5's front shell legs and the top edge
+    'C10': (W2, 1.3, 0, 'B', 1),
+    # left column
+    'F2': (1.45, 2.8, 90, 'B', 1), 'R21': (1.2, 6.4, 90, 'B', 1),
+    'JP2': (1.5, 9.6, 90, 'B', 1),
+    # right column (RESET's peg holes at y 14.0), the LDO in the corner below it
+    'R20': (W - 1.4, 3.6, 90, 'B', 1),
+    # BOOT pads across the column, +3V3 pad inboard (pad 1 left at 0 on the bottom), and their
+    # resistor below them, SWCLK pad inboard
+    'JP3': (W - 2.2, 10.6, 0, 'B', 1), 'R4': (W - 2.2, 12.6, 180, 'B', 1),
+    'C4': (W - 2.15, 15.9, 90, 'B', 1), 'C8': (W - 0.95, 15.9, 90, 'B', 1),
+    'U1': (W - 2.2, H - 3.2, 90, 'B', 1),
     # ---- top
-    'LED1': (1.6, 2.6, 90, 'F', 0), 'R5': (1.6, 5.6, 90, 'F', 0),
-    'LED2': (3.6, 2.6, 90, 'F', 0), 'R6': (3.6, 5.6, 90, 'F', 0),
-    'JP3': (8.0, 10.4, 0, 'F', 0), 'R4': (8.0, 12.2, 0, 'F', 0),
-    'JP2': (W / 2, 14.4, 0, 'F', 0),
+    # right of J5, above the CC1 via (usb_pair_pre.py)
+    'R5': (W - 2.6, 2.0, 90, 'F', 1), 'LED1': (W - 1.05, 1.95, 90, 'F', 1), 'LED2': (W - 1.05, 5.05, 90, 'F', 1), 'R6': (W - 1.05, 8.0, 90, 'F', 1),
+    'Q3': (2.3, 10.9, 0, 'F', 1), 'R15': (1.0, 14.4, 90, 'F', 0), 'R16': (2.2, 14.4, 90, 'F', 0),
+    'D6': (W2 + 2.15, 11.9, 90, 'F', 1),
     # 0.5 mm below J5's courtyard: VBUS and CC1 run along under J5's pad row (usb_pair_pre.py)
-    'R17': (11.6, 10.2, 0, 'F', 0), 'R18': (11.6, 11.3, 0, 'F', 0),
-    'R19': (13.9, 10.2, 0, 'F', 0), 'C19': (13.9, 11.3, 0, 'F', 0),
+    'R17': (W2 - 2.6, 10.2, 0, 'F', 1), 'R18': (W2 - 2.6, 11.55, 0, 'F', 1),
+    'R19': (W2 - 0.65, 10.2, 0, 'F', 1), 'C19': (W2 - 0.65, 11.55, 0, 'F', 1),
+    'D5': (1.4, H - 3.4, 90, 'F', 0),
+    'R22': (W - 2.3, H - 5.4, 90, 'F', 0), 'R23': (W - 1.1, H - 5.4, 90, 'F', 0), 'C20': (W - 1.7, H - 2.6, 0, 'F', 0),
 }

@@ -6,7 +6,3 @@
 (rule "Fan current"
   (condition "A.NetName == '/VBUS' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
   (constraint track_width (min 0.3mm)))
-
-(rule "H1/H2 rings at the panel's board corners"
-  (condition "A.memberOfFootprint('H1_*') || A.memberOfFootprint('H2_*')")
-  (constraint edge_clearance (min 0.49mm)))

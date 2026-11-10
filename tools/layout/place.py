@@ -92,6 +92,7 @@ if os.environ.get('PLAN_FILE'):
     _g = {'H': H, 'W': W}
     exec(open(os.environ['PLAN_FILE']).read(), _g)
     PLAN, ESCAPE = _g['PLAN'], _g.get('ESCAPE', ESCAPE)
+    HOLES &= set(PLAN)   # a plan without mounting holes
 
 
 def main(src, dst):

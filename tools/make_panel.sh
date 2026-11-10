@@ -48,27 +48,19 @@ PY
 $PY -m kikit.ui panelize -p $P/panel.json $P/src.kicad_pcb $P/$N.kicad_pcb 2>&1 | grep -v -e 'Debug: Adding' -e leak || true
 rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru $P/panel.json
 # KiKit's fiducials and tooling holes (KiKit_FID_*, KiKit_TO_*) and the bare solder-jumper pads
-# (JP3) have no part to place: keep them out of every BOM and position file, including
+# (JP2, JP3) have no part to place: keep them out of every BOM and position file, including
 # the Fabrication Toolkit's, which JLCPCB rejects when the CPL names parts the BOM lacks
 $PY - $P/$N.kicad_pcb 2>&1 <<'PY' | grep -v 'Debug\|assert\|leak' || true
 import re, sys, pcbnew
 f = sys.argv[1]
 b = pcbnew.LoadBoard(f); n = 0
 for fp in b.GetFootprints():
-    if re.match(r'KiKit_(FID|TO)_|JP3_\d+$', fp.GetReference()):
+    if re.match(r'KiKit_(FID|TO)_|JP[23]_\d+$', fp.GetReference()):
         fp.SetExcludedFromBOM(True); fp.SetExcludedFromPosFiles(True); n += 1
 pcbnew.SaveBoard(f, b)
 print(n, 'panel footprints excluded from BOM and position files')
 PY
 cp hardware/toolhead_usb.kicad_dru $P/$N.kicad_dru
-# H1's and H2's rings are exactly 0.5 mm from the board corners; KiKit's rebuilt outline puts
-# those corners a hair closer, so the panel allows 0.49 mm there
-cat >> $P/$N.kicad_dru <<'DRU'
-
-(rule "H1/H2 rings at the panel's board corners"
-  (condition "A.memberOfFootprint('H1_*') || A.memberOfFootprint('H2_*')")
-  (constraint edge_clearance (min 0.49mm)))
-DRU
 rm -rf $G && mkdir -p $G
 $K pcb export gerbers -o $G/ --layers F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts --subtract-soldermask $P/$N.kicad_pcb >/dev/null
 $K pcb export drill -o $G/ --format excellon --excellon-separate-th --drill-origin absolute --excellon-units mm $P/$N.kicad_pcb >/dev/null

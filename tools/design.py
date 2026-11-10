@@ -7,7 +7,7 @@ so edit connections here, not in the outputs.
 
 One board, powered and connected by USB-C alone: the STM32G0B1 runs Klipper
 over USB, from a 3.3 V LDO on VBUS. It reads a thermistor and a switch sensor
-and drives a 5 V fan from VBUS; the three share one 6-pin JST-PH plug. There is
+and drives a 5 V fan from VBUS; the three share one 6-pin JST-SH plug. There is
 no heater output, no 24 V and no CAN: the heater is wired straight to the
 printer's mainboard. This is the two-board 24 V CAN stack (branch `stack`)
 with the power input, CAN, heater and link taken out; parts it shares with the
@@ -71,8 +71,7 @@ FP = {
     "F1206": "Fuse:Fuse_1206_3216Metric",
     "SW": "Button_Switch_SMD:SW_SPST_EVQP7C",  # side-push, 3.5 x 2.9 mm
     "SJ": "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm",
-    "HDR2": "Connector_PinHeader_1.27mm:PinHeader_1x02_P1.27mm_Vertical_SMD_Pin1Right",
-    "PH6": "Connector_JST:JST_PH_S6B-PH-SM4-TB_1x06-1MP_P2.00mm_Horizontal",
+    "SH6": "Connector_JST:JST_SH_SM06B-SRSS-TB_1x06-1MP_P1.00mm_Horizontal",
     "USBC16": "Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12",
 }
 
@@ -99,11 +98,14 @@ PARTS = [
     # The 512 KB CEU6 (C2829190): same pinout and package as the stack's 128 KB CBU6,
     # which JLCPCB had only 6 of in November 2026. The crystal is required: Klipper's STM32G0
     # code clocks USB from the PLL, and the internal oscillator is outside USB's 0.25%.
+    # Fan, switch and status LED are on the pins nearest their parts (Klipper drives a fan or
+    # reads a switch on any GPIO): fan PB13 at the corner by the thermistor's PB12, status LED
+    # PA15 next to SWCLK, switch PB8 down the side facing J2's switch pin.
     P("U6", "box", "STM32G0B1CEU6", "QFN48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
-       10: "NRST", 24: "TH_ADC", 25: "SENS_IN", 28: "FAN_PWM",
+       10: "NRST", 24: "TH_ADC", 25: "FAN_PWM",
        33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
-       44: "LED_STAT", 49: "GND"},
+       37: "LED_STAT", 47: "SENS_IN", 49: "GND"},
       lcsc="C2829190", block="MCU", layout=STM32_LAYOUT),
     two("C9", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="MCU"),
     two("C10", "C", "10uF 25V X5R", "C0805", "+3V3", "GND", lcsc="C15850", block="MCU"),
@@ -138,10 +140,11 @@ PARTS = [
       lcsc="C7519", block="USB", layout=USBLC6_LAYOUT),
     two("C17", "C", "10uF 25V X5R", "C0805", "VBUS", "GND", lcsc="C15850", block="USB"),
     # ---------------- Plug ----------------
-    # One 1x6 2 mm JST-PH, right-angle SMD (2 A per contact): fan, thermistor, switch.
-    P("J2", "box", "Fan/therm/sensor (JST PH 1x6 S6B-PH-SM4-TB)", "PH6",
+    # One 1x6 1 mm JST-SH, right-angle SMD (1 A per contact, 28-32 AWG): fan, thermistor,
+    # switch. A third of the PH's footprint, which set the 22 x 30 board's size
+    P("J2", "box", "Fan/therm/sensor (JST SH 1x6 SM06B-SRSS-TB)", "SH6",
       {1: "FAN_P", 2: "FAN_N", 3: "TH_SIG", 4: "GND", 5: "SENS", 6: "GND"},
-      lcsc="C265405", block="Plug", layout=CONN6_LAYOUT),
+      lcsc="C160405", block="Plug", layout=CONN6_LAYOUT),
     # ---------------- Fan (5 V from VBUS) ----------------
     # 0.5 A hold at 25 C, about 0.33 A at 70 C: a 5 V fan of 0.3 A or less, which a USB 2.0
     # port (0.5 A) can supply with the logic
@@ -155,11 +158,9 @@ PARTS = [
     # ---------------- Thermistor ----------------
     two("R17", "R", "4.7k 0.1% 25ppm", "R0402", "VREFP", "TH_SIG", lcsc="C281778", block="Thermistor"),
     two("R18", "R", "4.12k 0.1% 25ppm", "R0402", "VREFP", "JP2_A", lcsc="C852812", block="Thermistor"),
-    # 1.27 mm SMD header; the 1.27 mm shunt (C150949) is fitted by hand.
-    # Pin1Right is the header's real leg stagger (JLCPCB footprint C41375972); the shunt is
-    # symmetric, so pin 1 is TH_SIG to keep each net's pad on its side
-    P("JP2", "box", "NTC/PT1000", "HDR2", {1: "TH_SIG", 2: "JP2_A"},
-      lcsc="C41375972", block="Thermistor", layout=CONN2_LAYOUT),
+    # Solder jumper: open for a 100k NTC (4.7k pull-up), bridged for a PT1000 (R18 in
+    # parallel, 2.2k)
+    two("JP2", "R", "NTC/PT1000", "SJ", "TH_SIG", "JP2_A", block="Thermistor"),
     two("R19", "R", "1k", "R0402", "TH_SIG", "TH_ADC", block="Thermistor"),
     two("C19", "C", "100nF", "C0402", "TH_ADC", "GND", lcsc="C1525", block="Thermistor"),
     P("D6", "box", "BAT54S", "SOT23", {1: "GND", 2: "+3V3", 3: "TH_ADC"},

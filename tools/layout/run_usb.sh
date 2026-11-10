@@ -4,7 +4,7 @@
 #   donor's routed MCU corner, turned with U6 to U6_AT) -> place.py (plan_usb.py) -> plane
 #   fan-out -> Freerouting -> pours -> maze loop -> clean-up
 # SRC: the donor board, the stack's logic board (git show stack:hardware/toolhead_logic.kicad_pcb
-#   > logic.kicad_pcb). BW/BH: board size (default 22 x 30). U6_AT: U6's place, "x,y,rot".
+#   > logic.kicad_pcb). BW/BH: board size (default 18 x 23.5). U6_AT: U6's place, "x,y,rot".
 #   PRE: pre-route scripts run before the plane fan-out (default usb_pair_pre.py, the USB pair).
 #   HARD: nets maze-routed and locked before Freerouting (default none). PRE_ONLY, MAZE_ITER, FR_PASSES,
 #   FR_TIMEOUT as in run_layout.sh. The work directory keeps the old file names
@@ -13,7 +13,9 @@ set -o pipefail
 . "$(dirname "$0")/env.sh"
 H=$(cd "$L/../../hardware" && pwd)
 NAME=toolhead_usb
-export BW=${BW:-22} BH=${BH:-30} U6_AT=${U6_AT:-11.0,12.2,90}
+export BW=${BW:-18} BH=${BH:-23.5}
+export U6_AT=${U6_AT:-$(awk "BEGIN { print $BW / 2 }"),12.2,90}   # centred
+export KEEP=   # no mounting holes
 HARD=${HARD-}
 PRE=${PRE-usb_pair_pre.py}
 py() { $PY "$@" 2>&1 | F; [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "FAILED: $(basename "$1")"; exit 1; }; }

@@ -1,12 +1,12 @@
 # Ordering from JLCPCB
 
-The USB toolhead board is ordered as a panel. JLCPCB's standard assembly needs a panel of at least 70 × 70 mm, and one board is 22 × 30 mm. There are three panel sizes; pick one and order from its folder:
+The USB toolhead board is ordered as a panel. JLCPCB's standard assembly needs a panel of at least 70 × 70 mm, and one board is 18 × 23.5 mm. There are three panel sizes; pick one and order from its folder:
 
 | Folder | Boards | Layout | Panel size |
 | --- | --- | --- | --- |
-| `panel/` | 9 | 3 × 3 | 84.3 × 112.3 mm |
-| `panel6/` | 6 | 3 columns × 2 rows | 84.3 × 80.2 mm |
-| `panel4/` | 4 | 2 × 2 | 72.0 × 80.2 mm |
+| `panel/` | 9 | 3 × 3 | 72.3 × 92.8 mm |
+| `panel6/` | 6 | 3 columns × 2 rows | 72.3 × 72.0 mm |
+| `panel4/` | 4 | 2 × 2 | 72.0 × 72.0 mm |
 
 Where the boards come to less than 72 mm on a side, `tools/make_panel.sh` widens the gap to the frame on that side. All three panels are inside JLCPCB's standard-assembly range (70 × 70 to 250 × 250 mm).
 
@@ -31,10 +31,10 @@ Order settings:
 
 The CPL is fitted to JLCPCB's own footprint for each part (`tools/jlc_cpl.py`), so positions and rotations should need no fixing. Still look over these:
 
-- **J2** (JST-PH, right-angle SMD): the plug opening must face the bottom edge.
+- **J2** (JST-SH, right-angle SMD, C160405): the plug opening must face the bottom edge.
 - **J5** (USB-C): the plug opening must face the top edge.
 - **U6** (STM32G0B1CEU6, C2829190): JLCPCB had 461 in November 2026. Check the BOM page shows enough stock.
-- **JP2:** the shunt (C150949) isn't in the BOM. Fit it by hand for a PT1000.
+- **JP2, JP3:** bare solder pads, not in the BOM. Bridge JP2 with solder for a PT1000.
 
 ## Don't use
 
@@ -52,4 +52,4 @@ zsh tools/make_panel.sh 6  # 6 boards: hardware/panel6/ and gerber/panel6/
 zsh tools/make_panel.sh 4  # 4 boards: hardware/panel4/ and gerber/panel4/
 ```
 
-`make_panel.sh` should report 351, 234 or 156 placements (39 parts per board), all fitted to JLCPCB footprints, and panel DRC with 0 errors and 0 unconnected. Commit the panel folders together with the board change.
+`make_panel.sh` should report 342, 228 or 152 placements (38 parts per board), all fitted to JLCPCB footprints, and panel DRC with 0 errors and 0 unconnected. Commit the panel folders together with the board change.

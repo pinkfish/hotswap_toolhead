@@ -18,7 +18,7 @@ net_f, donor_f, out_f = sys.argv[1:4]
 HW = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'hardware')
 LIBS = [os.environ.get('KICAD_FP_DIR', '/Applications/KiCad/KiCad.app/Contents/SharedSupport/footprints'),
         os.path.join(HW, 'footprints')]
-KEEP = ('H1', 'H2')   # board-only footprints (no symbol) kept from the donor
+KEEP = tuple(os.environ.get('KEEP', 'H1 H2').split())   # board-only footprints (no symbol) kept from the donor
 
 
 def parse(s):
@@ -99,9 +99,11 @@ for ref, c in sorted(comps.items()):
     f.SetPath(pcbnew.KIID_PATH('/' + c['tstamp']))
     f.SetSheetname('Root')
     f.SetSheetfile(c['props'].get('Sheetfile', ''))
-    if c['props'].get('LCSC'):
+    if 'LCSC' in c['props']:
         f.SetField('LCSC', c['props']['LCSC'])
     f.SetDNP('dnp' in c['props'])
+    # the symbol's BOM flag (library solder jumpers come excluded)
+    f.SetExcludedFromBOM('exclude_from_bom' in c['props'])
     for p in f.Pads():
         name = pin_net.get((ref, p.GetNumber()))
         if name is not None:
