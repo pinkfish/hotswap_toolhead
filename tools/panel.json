@@ -1,10 +1,56 @@
 {
-  "layout": {"type": "plugin", "code": "tools/panel_stack.py.StackLayout", "arg": "hardware/panel/src_power.kicad_pcb;3;3", "hspace": "2mm", "vspace": "6mm", "renamenet": "Board_{n}-{orig}", "renameref": "{orig}_{n}"},
-  "tabs": {"type": "annotation"},
-  "cuts": {"type": "mousebites", "drill": "0.5mm", "spacing": "0.8mm", "offset": "0mm", "prolong": "0mm"},
-  "framing": {"type": "frame", "width": "5mm", "hspace": "2mm", "vspace": "4mm", "cuts": "none"},
-  "tooling": {"type": "4hole", "hoffset": "2.5mm", "voffset": "2.5mm", "size": "1.152mm", "soldermaskmargin": "1.3mm"},
-  "fiducials": {"type": "3fid", "hoffset": "8mm", "voffset": "2.5mm", "coppersize": "1mm", "opening": "2mm"},
-  "text": {"type": "simple", "text": "hotswap_toolhead stack 3x3 logic+power  JLCJLCJLCJLC", "anchor": "mb", "voffset": "-2.5mm", "width": "1.5mm", "height": "1.5mm", "layer": "F.SilkS"},
-  "post": {"millradius": "1mm", "refillzones": true, "origin": "bl"}
+ "layout": {
+  "type": "grid",
+  "rows": 3,
+  "cols": 3,
+  "hspace": "2mm",
+  "vspace": "2mm",
+  "renamenet": "Board_{n}-{orig}",
+  "renameref": "{orig}_{n}"
+ },
+ "tabs": {
+  "type": "annotation"
+ },
+ "cuts": {
+  "type": "mousebites",
+  "drill": "0.5mm",
+  "spacing": "0.8mm",
+  "offset": "0mm",
+  "prolong": "0mm"
+ },
+ "framing": {
+  "type": "frame",
+  "width": "5mm",
+  "hspace": "2mm",
+  "vspace": "4mm",
+  "cuts": "none"
+ },
+ "tooling": {
+  "type": "4hole",
+  "hoffset": "2.5mm",
+  "voffset": "2.5mm",
+  "size": "1.152mm",
+  "soldermaskmargin": "1.3mm"
+ },
+ "fiducials": {
+  "type": "3fid",
+  "hoffset": "8mm",
+  "voffset": "2.5mm",
+  "coppersize": "1mm",
+  "opening": "2mm"
+ },
+ "text": {
+  "type": "simple",
+  "text": "hotswap_toolhead usb 3x3  JLCJLCJLCJLC",
+  "anchor": "mb",
+  "voffset": "-2.5mm",
+  "width": "1.5mm",
+  "height": "1.5mm",
+  "layer": "F.SilkS"
+ },
+ "post": {
+  "millradius": "1mm",
+  "refillzones": true,
+  "origin": "bl"
+ }
 }

@@ -1,13 +1,13 @@
-"""Generate KiCad files for the two toolhead boards from design.py.
+"""Generate KiCad files for the toolhead board from design.py.
 
-Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_logic, toolhead_power):
-  NAME.kicad_pro       project file (only if missing; copied from the other board's, so both
-                       keep the same DRC severities)
+Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_usb):
+  NAME.kicad_pro       project file (only if missing; copied from an existing project, for its
+                       DRC severities)
   NAME.kicad_sch       schematic: every pin tied to its net with a label
   NAME.kicad_dru       custom design rules (current, clearance)
   NAME-bom-jlcpcb.csv  BOM in JLCPCB's upload format
-and bom_jlcpcb.csv, both boards' BOMs together (the panel holds both).
-The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_stack.sh, which
+and bom_jlcpcb.csv, the BOM for all boards together.
+The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_usb.sh, which
 makes the footprints from the schematic's netlist (tools/layout/from_netlist.py). Symbol UUIDs
 are derived from the board and reference, so regenerating a schematic keeps the footprints
 linked to their symbols.
@@ -56,20 +56,13 @@ FONT_HIDE = "(effects (font (size 1.27 1.27)) hide)"
 
 LAYOUT_NAMES = {
     id(design.STM32_LAYOUT): "STM32G0B1_LQFP48",
-    id(design.BUCK_LAYOUT): "LMR16006_SOT23_6",
-    id(design.CAN_LAYOUT): "CAN_XCVR_SON8",
+    id(design.LDO_LAYOUT): "LDO_SOT23_5",
     id(design.USBLC6_LAYOUT): "USBLC6_2SC6",
-    id(design.FET_LAYOUT): "MOSFET_8PIN",
-    id(design.SOT3_LAYOUT): "SOT23_3",
     id(design.SOT23FET_LAYOUT): "NMOS_SOT23",
-    id(design.GATEDRV_LAYOUT): "GATE_DRIVER_SOT23_5",
     id(design.XTAL4_LAYOUT): "XTAL_4PIN",
     id(design.BAT54S_LAYOUT): "BAT54S",
-    id(design.XT30_LAYOUT): "XT30_2P2",
     id(design.CONN2_LAYOUT): "CONN_2",
-    id(design.CONN4_LAYOUT): "CONN_4",
-    id(design.CONN8_LAYOUT): "CONN_8",
-    id(design.CONN12_LAYOUT): "CONN_2X6",
+    id(design.CONN6_LAYOUT): "CONN_6",
     id(design.USBC_LAYOUT): "USB_C_16P",
 }
 TWO_PIN_NAMES = {"R": ("~", "~"), "C": ("~", "~"), "L": ("~", "~"), "CP": ("+", "-"), "D": ("K", "A")}
@@ -236,20 +229,11 @@ def build_schematic(board):
             else:
                 items.append(f'  (no_connect (at {f(ex)} {f(ey)}) (uuid {q(uid())}))')
 
-    other = [b for b in design.BOARDS if b != board][0]
     notes = [
         title + " - generated from design.py. Each pin connects through a net label.",
-        "J%s is the board-to-board link to the %s board: pin n there carries the same net as pin n here%s." % (
-            "3" if board == "logic" else "4", other,
-            " (pin 12 is GND here, the thermistor return TH_RTN there)" if board == "logic"
-            else " (pin 12 is TH_RTN here, a GND pin on the logic board)"),
-    ] + ([
-        "J1 uses hotswap_toolhead:XT30PW-2+2-M (LCSC C19268030) from footprints/hotswap_toolhead.pretty.",
-        "U3 pin 5 is TCAN3414 SHDN: left open (internal pull-down keeps the transceiver on).",
+        "Powered by USB alone: U1 (ME6211C33, SOT-23-5: 1 VIN, 2 GND, 3 CE, 4 NC, 5 VOUT) makes 3.3 V from VBUS.",
         "Verify U6 pins against ST DS13560 (STM32G0B1 UFQFPN48 pinout) before layout.",
-    ] if board == "logic" else [
-        "U1 is TI LMR16006X (SOT-23-6): pins 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. D9 is its catch diode.",
-    ])
+    ]
     for i, n in enumerate(notes):
         items.append(f'  (text {q(n)} (exclude_from_sim no) (at 15.24 {f(12.7 + i * 3.81)} 0)'
                      f' (effects (font (size 1.778 1.778)) (justify left bottom)) (uuid {q(uid())}))')
@@ -268,22 +252,13 @@ def build_schematic(board):
 
 
 DRU = """(version 1)
-(rule "High-current nets"
-  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/VIN_F' || A.NetName == '/+24V' || A.NetName == '/HEAT_N'")
-  (constraint track_width (min 0.8mm) (opt 3mm)))
-(rule "24 V clearance"
-  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/VIN_F' || A.NetName == '/+24V' || A.NetName == '/HEAT_N' || A.NetName == '/FAN_N' || A.NetName == '/FAN_P'")
-  (constraint clearance (min 0.3mm)))
 (rule "USB pair"
   (condition "A.inDiffPair('/USB_D')")
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
-(rule "C15 beside D1"
-  # logic board: the NRST cap, in the MCU corner carried over from the 27 x 36 board, sits under
-  # the TVS's GND end; pads 0.25 mm apart, bodies clear. Wildcards for the panel's C15_n / D1_n
-  # (D1* is only D1 on the logic board; the power board has no C15); DRC tries both orders
-  (condition "A.Reference == 'C15*' && B.Reference == 'D1*'")
-  (constraint courtyard_clearance (min -1mm)))
+(rule "Fan current"
+  (condition "A.NetName == '/VBUS' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
+  (constraint track_width (min 0.3mm)))
 """
 
 
@@ -312,12 +287,15 @@ def main():
         if not os.path.exists(pro):
             # the other board's project (or the old single board's) carries the DRC severities
             # and netclasses; the layout run rewrites the netclasses
-            src = [os.path.join(OUT, n + ".kicad_pro") for n, _ in design.BOARDS.values()] + \
-                  [os.path.join(OUT, "toolhead.kicad_pro")]
+            src = [os.path.join(OUT, n + ".kicad_pro") for n in ("toolhead_logic", "toolhead_power", "toolhead")]
+            # (the stack's projects are on branch `stack`; without one KiCad fills in its defaults)
             src = [f for f in src if os.path.exists(f)]
             d = json.load(open(src[0])) if src else {}
             d["meta"] = {"filename": name + ".kicad_pro", "version": d.get("meta", {}).get("version", 1)}
             d["sheets"] = [[root_uuid(board), "Root"]]
+            if "schematic" in d:
+                d["schematic"]["top_level_sheets"] = [
+                    {"filename": name + ".kicad_sch", "name": name, "uuid": root_uuid(board)}]
             with open(pro, "w") as fh:
                 json.dump(d, fh, indent=2)
         with open(os.path.join(OUT, name + "-bom-jlcpcb.csv"), "w", newline="") as fh:
@@ -340,7 +318,7 @@ def main():
         fh.write('(fp_lib_table\n  (version 7)\n'
                  '  (lib (name "hotswap_toolhead") (type "KiCad")'
                  ' (uri "${KIPRJMOD}/footprints/hotswap_toolhead.pretty")'
-                 ' (options "") (descr "Project footprints: XT30PW(2+2)-M"))\n)\n')
+                 ' (options "") (descr "Project footprints"))\n)\n')
 
 
 if __name__ == "__main__":

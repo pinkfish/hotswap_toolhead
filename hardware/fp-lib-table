@@ -1,4 +1,4 @@
 (fp_lib_table
   (version 7)
-  (lib (name "hotswap_toolhead") (type "KiCad") (uri "${KIPRJMOD}/footprints/hotswap_toolhead.pretty") (options "") (descr "Project footprints: XT30PW(2+2)-M"))
+  (lib (name "hotswap_toolhead") (type "KiCad") (uri "${KIPRJMOD}/footprints/hotswap_toolhead.pretty") (options "") (descr "Project footprints"))
 )

@@ -63,9 +63,4 @@ def check(board, name):
 
 
 errs=sum(check(board, name) for board, (name, _) in design.BOARDS.items())
-# the link's two halves: pin n carries the same net on both boards (pin 12 GND / TH_RTN)
-j3={str(k):v for k,v in [p for p in design.PARTS if p["ref"]=="J3"][0]["nets"].items()}
-j4={str(k):v for k,v in [p for p in design.PARTS if p["ref"]=="J4"][0]["nets"].items()}
-bad=[n for n in j3 if (j3[n],j4.get(n))!=design.LINK[int(n)] or (j3[n]!=j4[n] and n!="12")]
-print("link pins that differ between the boards:",bad)
-sys.exit(1 if errs or bad else 0)
+sys.exit(1 if errs else 0)

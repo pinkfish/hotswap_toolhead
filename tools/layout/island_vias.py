@@ -1,8 +1,8 @@
 """island_vias.py board.kicad_pcb - a GND via into each F/B GND pour island that has none.
 An island boxed in by tracks (a decoupling cap's GND pad between two signal runs) is joined to
 the In1 plane only through its pads otherwise, and DRC counts it as unconnected. The via goes at
-the first spot on a 0.1 mm grid inside the island that clears other nets' copper on F/B, holes
-and the board edge.
+the first spot on a 0.1 mm grid inside the island that clears other nets' pads on F/B, other
+nets' tracks on every layer, holes and the board edge.
 """
 import sys
 
@@ -25,7 +25,7 @@ def fits(pos):
         return False
     r = mm(D / 2)
     for p in b.GetPads():
-        if p.GetDrillSize().x and (pos - p.GetPosition()).EuclideanNorm() < p.GetDrillSize().x / 2 + mm(DRILL / 2 + HOLE_CLR):
+        if p.GetDrillSize().x and (pos - p.GetPosition()).EuclideanNorm() < p.GetDrillSize().x / 2 + mm(D / 2 + HOLE_CLR):
             return False
         if p.GetNetname() == '/GND':
             continue
@@ -36,7 +36,7 @@ def fits(pos):
         if t.GetClass() == 'PCB_VIA':
             if (pos - t.GetPosition()).EuclideanNorm() < r + t.GetWidth(pcbnew.F_Cu) / 2 + mm(0.2 if t.GetNetname() == '/GND' else 0.3 if t.GetNetname() in HV else 0.2):
                 return False
-        elif t.GetNetname() != '/GND' and t.GetLayer() in CU:
+        elif t.GetNetname() != '/GND':     # any layer: the via goes through In2 too
             cl = mm(0.3 if t.GetNetname() in HV else 0.2)
             if pcbnew.SEG(t.GetStart(), t.GetEnd()).Distance(pos) < r + t.GetWidth() / 2 + cl:
                 return False

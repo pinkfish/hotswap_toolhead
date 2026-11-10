@@ -16,7 +16,8 @@ import pcbnew
 O = 100.0
 mm, tomm = pcbnew.FromMM, pcbnew.ToMM
 CORNER = ['U6', 'Y1', 'C9', 'C11', 'C12', 'C13', 'C14', 'C15', 'FB1']
-U6_AT = (13.5, 15.8, 0)
+import os
+U6_AT = tuple(float(v) for v in os.environ.get('U6_AT', '13.5,15.8,0').split(','))
 TRIM = 0.3
 PLANE_NETS = {'/GND', '/+3V3'}
 

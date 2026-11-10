@@ -1,12 +1,12 @@
 #!/bin/bash
-# fab.sh : regenerate gerber/logic/ and gerber/power/ (Gerbers, drill, JLCPCB BOM + CPL) from
-# hardware/toolhead_logic.kicad_pcb and hardware/toolhead_power.kicad_pcb.
+# fab.sh : regenerate gerber/usb/ (Gerbers, drill, JLCPCB BOM + CPL) from
+# hardware/toolhead_usb.kicad_pcb.
 # KICAD_CLI and KICAD_PY override the kicad-cli and KiCad Python paths.
 R=$(cd "$(dirname "$0")/.." && pwd)
 K=${KICAD_CLI:-/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli}
 PY=${KICAD_PY:-/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3}
 cd "$R" || exit 1
-for b in logic power; do
+for b in usb; do
   N=toolhead_$b; G=gerber/$b
   rm -rf $G; mkdir -p $G
   "$K" pcb export gerbers -o $G/ --layers F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts --subtract-soldermask hardware/$N.kicad_pcb >/dev/null 2>&1
