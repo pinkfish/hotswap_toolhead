@@ -5,17 +5,17 @@
       "Application": "Pcbnew",
       "Version": "10.0.7"
     },
-    "CreationDate": "2026-11-16T10:30:05-08:00"
+    "CreationDate": "2026-11-16T14:55:06-08:00"
   },
   "GeneralSpecs": {
     "ProjectId": {
-      "Name": "toolhead_usb",
-      "GUID": "746f6f6c-6865-4616-945f-7573622e6b69",
+      "Name": "toolhead_can",
+      "GUID": "746f6f6c-6865-4616-945f-63616e2e6b69",
       "Revision": "A"
     },
     "Size": {
-      "X": 19.6,
-      "Y": 23.6
+      "X": 27.1,
+      "Y": 34.1
     },
     "LayerNumber": 4,
     "BoardThickness": 1.6,
@@ -43,57 +43,57 @@
   ],
   "FilesAttributes": [
     {
-      "Path": "toolhead_usb-F_Cu.gtl",
+      "Path": "toolhead_can-F_Cu.gtl",
       "FileFunction": "Copper,L1,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-In1_Cu.g1",
+      "Path": "toolhead_can-In1_Cu.g1",
       "FileFunction": "Copper,L2,Inr",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-In2_Cu.g2",
+      "Path": "toolhead_can-In2_Cu.g2",
       "FileFunction": "Copper,L3,Inr",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-B_Cu.gbl",
+      "Path": "toolhead_can-B_Cu.gbl",
       "FileFunction": "Copper,L4,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-F_Paste.gtp",
+      "Path": "toolhead_can-F_Paste.gtp",
       "FileFunction": "SolderPaste,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-B_Paste.gbp",
+      "Path": "toolhead_can-B_Paste.gbp",
       "FileFunction": "SolderPaste,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-F_Silkscreen.gto",
+      "Path": "toolhead_can-F_Silkscreen.gto",
       "FileFunction": "Legend,Top",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-B_Silkscreen.gbo",
+      "Path": "toolhead_can-B_Silkscreen.gbo",
       "FileFunction": "Legend,Bot",
       "FilePolarity": "Positive"
     },
     {
-      "Path": "toolhead_usb-F_Mask.gts",
+      "Path": "toolhead_can-F_Mask.gts",
       "FileFunction": "SolderMask,Top",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "toolhead_usb-B_Mask.gbs",
+      "Path": "toolhead_can-B_Mask.gbs",
       "FileFunction": "SolderMask,Bot",
       "FilePolarity": "Negative"
     },
     {
-      "Path": "toolhead_usb-Edge_Cuts.gm1",
+      "Path": "toolhead_can-Edge_Cuts.gm1",
       "FileFunction": "Profile",
       "FilePolarity": "Positive"
     }

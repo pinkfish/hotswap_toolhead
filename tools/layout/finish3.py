@@ -38,7 +38,8 @@ def rect(x0, y0, x1, y1):
 # heater drain: a top-layer HEAT_N pour around J2's HEATER- pin and Q2's drain tab,
 # sized from where those pads ended up.  Solid connection so the tab sinks heat.
 pads = [p for f in b.GetFootprints() for p in f.Pads() if p.GetNetname() == '/HEAT_N']
-if pads:   # the power board; the logic board has no heater
+# the power board (the logic board has no heater), unless a pre-route script poured it already
+if pads and not any(z.GetZoneName() == 'HEAT_N pour' for z in b.Zones()):
     bb = pads[0].GetBoundingBox()
     for p in pads[1:]:
         bb.Merge(p.GetBoundingBox())

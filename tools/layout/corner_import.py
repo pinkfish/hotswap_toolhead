@@ -49,15 +49,19 @@ box = (min(a[0] for a in e) - mm(TRIM), min(min(a[1] for a in e) - mm(TRIM), u.G
 nets = {p.GetNetname() for r in CORNER[1:] for p in d.FindFootprintByReference(r).Pads()}
 
 
-def within(p):
-    return box[0] <= p.x <= box[2] and box[1] <= p.y <= box[3]
+def within(p, net=None):
+    # in the area, or (a track's end) on one of U6's pads of its net: a pin escape starts at the
+    # pad's centre, which can lie just outside it
+    return (box[0] <= p.x <= box[2] and box[1] <= p.y <= box[3]) or \
+        (net is not None and any(q.GetNetname() == net and q.HitTest(p) for q in du.Pads()))
 
 
 # the corner's own nets, inside its area: runs that go on elsewhere keep only their escapes
 copied = 0
 for t in d.GetTracks():
     ends = [t.GetPosition()] if t.GetClass() == 'PCB_VIA' else [t.GetStart(), t.GetEnd()]
-    if t.GetNetname() not in nets or not all(within(p) for p in ends):
+    net = None if t.GetClass() == 'PCB_VIA' else t.GetNetname()
+    if t.GetNetname() not in nets or not all(within(p, net) for p in ends):
         continue
     # bottom-side copper only (the top side holds other parts here); a via only on a plane net,
     # where it lands on the plane, not as the start of a top-side run

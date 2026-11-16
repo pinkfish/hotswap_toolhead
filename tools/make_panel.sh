@@ -1,6 +1,6 @@
 #!/bin/zsh
-# make_panel.sh [9|6|4] - build a JLCPCB panel of N USB boards (default 9) from
-# hardware/toolhead_usb.kicad_pcb, in a KiKit grid:
+# make_panel.sh [9|6|4] - build a JLCPCB panel of N CAN boards (default 9) from
+# hardware/toolhead_can.kicad_pcb, in a KiKit grid:
 #   9: 3 columns x 3 rows   -> hardware/panel/,  gerber/panel/,  toolhead_panel
 #   6: 3 columns x 2 rows   -> hardware/panel6/, gerber/panel6/, toolhead_panel6
 #   4: 2 columns x 2 rows   -> hardware/panel4/, gerber/panel4/, toolhead_panel4
@@ -24,9 +24,9 @@ N=toolhead_panel$SUF
 P=hardware/panel$SUF
 G=gerber/panel$SUF
 mkdir -p $P $G
-cp hardware/toolhead_usb.kicad_pro $P/src.kicad_pro
-cp hardware/toolhead_usb.kicad_dru $P/src.kicad_dru
-$PY tools/panel_tabs.py hardware/toolhead_usb.kicad_pcb $P/src.kicad_pcb 2>&1 | grep -v -e Debug -e assert -e leak
+cp hardware/toolhead_can.kicad_pro $P/src.kicad_pro
+cp hardware/toolhead_can.kicad_dru $P/src.kicad_dru
+$PY tools/panel_tabs.py hardware/toolhead_can.kicad_pcb $P/src.kicad_pcb 2>&1 | grep -v -e Debug -e assert -e leak
 # tools/panel.json with this size's grid, and the frame gaps widened to reach 72 mm a side
 $PY - $P $ROWS $COLS 2>&1 <<'PY' | grep -v 'Debug\|assert\|leak'
 import json, sys, pcbnew
@@ -48,19 +48,19 @@ PY
 $PY -m kikit.ui panelize -p $P/panel.json $P/src.kicad_pcb $P/$N.kicad_pcb 2>&1 | grep -v -e 'Debug: Adding' -e leak || true
 rm -f $P/src.kicad_pcb $P/src.kicad_pro $P/src.kicad_dru $P/panel.json
 # KiKit's fiducials and tooling holes (KiKit_FID_*, KiKit_TO_*) and the bare solder-jumper pads
-# (JP2, JP3) have no part to place: keep them out of every BOM and position file, including
+# (JP1-JP3) have no part to place: keep them out of every BOM and position file, including
 # the Fabrication Toolkit's, which JLCPCB rejects when the CPL names parts the BOM lacks
 $PY - $P/$N.kicad_pcb 2>&1 <<'PY' | grep -v 'Debug\|assert\|leak' || true
 import re, sys, pcbnew
 f = sys.argv[1]
 b = pcbnew.LoadBoard(f); n = 0
 for fp in b.GetFootprints():
-    if re.match(r'KiKit_(FID|TO)_|JP[23]_\d+$', fp.GetReference()):
+    if re.match(r'KiKit_(FID|TO)_|JP[123]_\d+$', fp.GetReference()):
         fp.SetExcludedFromBOM(True); fp.SetExcludedFromPosFiles(True); n += 1
 pcbnew.SaveBoard(f, b)
 print(n, 'panel footprints excluded from BOM and position files')
 PY
-cp hardware/toolhead_usb.kicad_dru $P/$N.kicad_dru
+cp hardware/toolhead_can.kicad_dru $P/$N.kicad_dru
 rm -rf $G && mkdir -p $G
 $K pcb export gerbers -o $G/ --layers F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts --subtract-soldermask $P/$N.kicad_pcb >/dev/null
 $K pcb export drill -o $G/ --format excellon --excellon-separate-th --drill-origin absolute --excellon-units mm $P/$N.kicad_pcb >/dev/null

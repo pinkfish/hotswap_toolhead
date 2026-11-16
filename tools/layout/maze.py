@@ -71,9 +71,10 @@ def ready_items():
                 shapes[L] = it.GetEffectiveShape(L)
         bb = it.GetBoundingBox()
         out.append((net, shapes, hole, (tomm(bb.GetLeft()), tomm(bb.GetTop()), tomm(bb.GetRight()), tomm(bb.GetBottom())), rip))
-    # non-GND copper zones (e.g. the HEAT_N pour) are obstacles too
+    # non-GND copper zones (e.g. the HEAT_N pour) are obstacles too, and a GND pour laid by a
+    # pre-route script (named '... pour', can_pre.py's heater return); not the GND fills
     for z in b.Zones():
-        if z.GetIsRuleArea() or z.GetNetname() == '/GND':
+        if z.GetIsRuleArea() or (z.GetNetname() == '/GND' and not z.GetZoneName().endswith(' pour')):
             continue
         L = z.GetLayer()
         if L not in LAYERS:

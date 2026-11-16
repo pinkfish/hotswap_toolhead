@@ -4,8 +4,8 @@ J1/J5 and J2 overhang the top and bottom edges, so the boards are held by side t
 per side. In a panel row every board is the same one, so a tab at height y on a board's right
 edge meets the next board's left edge at the same y: a tab goes only where the 0.6 mm strip
 along both side edges has no copper (pads, tracks, vias; a 0.5 mm bite hole centred on the edge
-reaches 0.25 mm in), no part overhangs either side edge (its courtyard crosses it) and no edge
-notch's keep-out reaches. The two
+reaches 0.25 mm in), no part's courtyard comes within 0.35 mm of either side edge (so no bite
+hole lands in one) and no edge notch's keep-out reaches. The two
 tabs go as far apart as the clear windows allow, at the top of the first and the bottom of the
 last (both in one window if it is long enough), each 1.4-1.8 mm wide with 0.3 mm to spare.
 """
@@ -18,6 +18,7 @@ import pcbnew
 mm = pcbnew.FromMM
 O = 100.0
 STRIP, SPARE, WMIN, WMAX = 0.6, 0.3, 1.4, 1.8
+BITE = 0.35       # a bite hole reaches 0.25 mm in: courtyards keep 0.1 mm clear of it
 CORNER = 1.2      # KiKit rounds the board corners: no tab within this of the top or bottom edge
 LIB = os.path.join(os.path.dirname(kikit.__file__), 'resources', 'kikit.pretty')
 b = pcbnew.LoadBoard(sys.argv[1])
@@ -41,7 +42,7 @@ for f in b.GetFootprints():
     for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
         c = f.GetCourtyard(layer)
         if c.OutlineCount():
-            block(c.BBox(), 0)
+            block(c.BBox(), BITE)
 for t in b.GetTracks():
     block(t.GetBoundingBox())
 # the edge notches' screw-head keep-outs (place.py): no tab in a notch

@@ -1,23 +1,23 @@
 #!/bin/bash
-# run_usb.sh workdir : lay out the USB board from its schematic.
+# run_can.sh workdir : lay out the CAN board from its schematic.
 #   netlist -> from_netlist.py (footprints from the donor board, SRC) -> corner_import.py (the
-#   donor's routed MCU corner, turned with U6 to U6_AT) -> place.py (plan_usb.py) -> plane
+#   donor's routed MCU corner, turned with U6 to U6_AT) -> place.py (plan_can.py) -> plane
 #   fan-out -> Freerouting -> pours -> maze loop -> clean-up
 # SRC: the donor board, the stack's logic board (git show stack:hardware/toolhead_logic.kicad_pcb
-#   > logic.kicad_pcb). BW/BH: board size (default 19.5 x 23.5). U6_AT: U6's place, "x,y,rot".
-#   PRE: pre-route scripts run before the plane fan-out (default usb_pair_pre.py, the USB pair).
+#   > logic.kicad_pcb). BW/BH: board size (default 27 x 34). U6_AT: U6's place, "x,y,rot".
+#   PRE: pre-route scripts run before the plane fan-out (default can_pre.py, the power path).
 #   HARD: nets maze-routed and locked before Freerouting (default none). PRE_ONLY, MAZE_ITER, FR_PASSES,
 #   FR_TIMEOUT as in run_layout.sh. The work directory keeps the old file names
 #   (toolhead.kicad_*); the result is board.kicad_pcb.
 set -o pipefail
 . "$(dirname "$0")/env.sh"
 H=$(cd "$L/../../hardware" && pwd)
-NAME=toolhead_usb
-export BW=${BW:-19.5} BH=${BH:-23.5}
-export U6_AT=${U6_AT:-$(awk "BEGIN { print $BW / 2 }"),12.2,90}   # centred
-export KEEP=   # no mounting holes: edge notches (plan_usb.py)
+NAME=toolhead_can
+export BW=${BW:-27} BH=${BH:-34}
+export U6_AT=${U6_AT:-$(awk "BEGIN { print $BW / 2 }"),14.5,90}   # centred
+export KEEP=   # no mounting holes: edge notches (plan_can.py)
 HARD=${HARD-}
-PRE=${PRE-usb_pair_pre.py}
+PRE=${PRE-can_pre.py}
 py() { $PY "$@" 2>&1 | F; [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "FAILED: $(basename "$1")"; exit 1; }; }
 SRC=$(cd "$(dirname "${SRC:?set SRC to the donor board}")" && pwd)/$(basename "$SRC")
 mkdir -p "$1"; cd "$1" || exit 1
@@ -27,7 +27,7 @@ cp "$H/fp-lib-table" .; rm -rf footprints; cp -R "$H/footprints" .
 "$KICAD_CLI" sch export netlist -o toolhead.net toolhead.kicad_sch >/dev/null 2>&1
 py "$L/from_netlist.py" toolhead.net "$SRC" netlist.kicad_pcb
 py "$L/corner_import.py" netlist.kicad_pcb "$SRC"
-PLAN_FILE="$L/plan_usb.py" py "$L/place.py" netlist.kicad_pcb placed.kicad_pcb
+PLAN_FILE="$L/plan_can.py" py "$L/place.py" netlist.kicad_pcb placed.kicad_pcb
 cp placed.kicad_pcb toolhead.kicad_pcb
 $PY "$L/netclasses.py" base.kicad_pro toolhead.kicad_pro >/dev/null 2>&1
 py "$L/misc_pre.py" toolhead.kicad_pcb
@@ -49,6 +49,7 @@ bash "$L/frbest.sh" . || exit 1
 
 cp pre_route.kicad_pcb routed.kicad_pcb
 py "$L/finish3.py" routed.kicad_pcb toolhead.ses
+py "$L/pour_clear.py" routed.kicad_pcb
 for e in kicad_pro kicad_sch kicad_dru; do cp toolhead.$e routed.$e; done
 bash "$L/check.sh" routed.kicad_pcb | grep -v "silk\|lib_foot\|starved\|dangling"
 bash "$L/ripup_loop.sh" routed.kicad_pcb maze.kicad_pcb ${MAZE_ITER:-6} 2>&1 | grep -E "^iter|^routed|unconnected|FAIL|error"

@@ -72,6 +72,9 @@ if SPLIT or TOP:
 
 # keep-outs: rule areas around the mounting holes
 keepouts = [z for z in b.Zones() if z.GetIsRuleArea()]   # each checked for what it forbids
+# outer-layer pours laid by a pre-route script (named '... pour'): no other net's via or track in them
+pours = [z for z in b.Zones() if not z.GetIsRuleArea() and z.GetZoneName().endswith(' pour')
+         and z.GetLayer() in (pcbnew.F_Cu, pcbnew.B_Cu)]
 pads = [p for f in b.GetFootprints() for p in f.Pads()]
 vias = []      # (x, y) in IU of vias placed so far
 tracks = []    # (layer, seg shape, net)
@@ -95,6 +98,9 @@ def legal_via(pos, net):
             return False
     for k in keepouts:
         if k.GetDoNotAllowVias() and k.Outline().Collide(pos, mm(VIA_D / 2)):
+            return False
+    for z in pours:
+        if z.GetNetname() != net and z.Outline().Collide(pos, mm(VIA_D / 2 + CLR)):
             return False
     for p in pads:
         drilled = p.GetAttribute() in (pcbnew.PAD_ATTRIB_PTH, pcbnew.PAD_ATTRIB_NPTH)
@@ -127,6 +133,9 @@ def legal_track(layer, a, c, net, own_pad):
     seg = pcbnew.SEG(a, c)
     for k in keepouts:
         if k.GetDoNotAllowTracks() and k.IsOnLayer(layer) and k.Outline().Collide(seg, mm(TRACK / 2)):
+            return False
+    for z in pours:
+        if z.GetNetname() != net and z.GetLayer() == layer and z.Outline().Collide(seg, mm(TRACK / 2 + CLR)):
             return False
     for p in pads:
         if p is own_pad or p.GetNetname() == net or not p.IsOnLayer(layer):

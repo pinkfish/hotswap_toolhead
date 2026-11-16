@@ -1,13 +1,13 @@
 """Generate KiCad files for the toolhead board from design.py.
 
-Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_usb):
+Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_can):
   NAME.kicad_pro       project file (only if missing; copied from an existing project, for its
                        DRC severities)
   NAME.kicad_sch       schematic: every pin tied to its net with a label
   NAME.kicad_dru       custom design rules (current, clearance)
   NAME-bom-jlcpcb.csv  BOM in JLCPCB's upload format
 and bom_jlcpcb.csv, the BOM for all boards together.
-The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_usb.sh, which
+The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_can.sh, which
 makes the footprints from the schematic's netlist (tools/layout/from_netlist.py). Symbol UUIDs
 are derived from the board and reference, so regenerating a schematic keeps the footprints
 linked to their symbols.
@@ -56,14 +56,20 @@ FONT_HIDE = "(effects (font (size 1.27 1.27)) hide)"
 
 LAYOUT_NAMES = {
     id(design.STM32_LAYOUT): "STM32G0B1_LQFP48",
-    id(design.LDO_LAYOUT): "LDO_SOT23_5",
+    id(design.BUCK_LAYOUT): "LMR16006_SOT23_6",
+    id(design.CAN_LAYOUT): "CAN_XCVR_SON8",
     id(design.USBLC6_LAYOUT): "USBLC6_2SC6",
+    id(design.FET_LAYOUT): "MOSFET_8PIN",
+    id(design.SOT3_LAYOUT): "SOT23_3",
     id(design.SOT23FET_LAYOUT): "NMOS_SOT23",
+    id(design.GATEDRV_LAYOUT): "GATE_DRIVER_SOT23_5",
     id(design.XTAL4_LAYOUT): "XTAL_4PIN",
     id(design.BAT54S_LAYOUT): "BAT54S",
     id(design.CONN2_LAYOUT): "CONN_2",
     id(design.CONN6_LAYOUT): "CONN_6",
-    id(design.USBC_LAYOUT): "USB_C_16P",
+    id(design.IN6_LAYOUT): "CONN_IN_6",
+    id(design.HEAT4_LAYOUT): "CONN_HEAT_4",
+    id(design.USB4_LAYOUT): "CONN_USB_4",
 }
 TWO_PIN_NAMES = {"R": ("~", "~"), "C": ("~", "~"), "L": ("~", "~"), "CP": ("+", "-"), "D": ("K", "A")}
 
@@ -231,7 +237,7 @@ def build_schematic(board):
 
     notes = [
         title + " - generated from design.py. Each pin connects through a net label.",
-        "Powered by USB alone: U1 (ME6211C33, SOT-23-5: 1 VIN, 2 GND, 3 CE, 4 NC, 5 VOUT) makes 3.3 V from VBUS.",
+        "24 V and CAN in on J1; U1 (LMR16006, 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW) makes 3.3 V from 24 V or USB VBUS (J5).",
         "Verify U6 pins against ST DS13560 (STM32G0B1 UFQFPN48 pinout) before layout.",
     ]
     for i, n in enumerate(notes):
@@ -252,12 +258,18 @@ def build_schematic(board):
 
 
 DRU = """(version 1)
+(rule "High-current nets"
+  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/+24V' || A.NetName == '/HEAT_N'")
+  (constraint track_width (min 0.8mm) (opt 3mm)))
+(rule "24 V clearance"
+  (condition "A.NetName == '/VIN_RAW' || A.NetName == '/+24V' || A.NetName == '/HEAT_N' || A.NetName == '/FAN_N' || A.NetName == '/FAN_P'")
+  (constraint clearance (min 0.3mm)))
 (rule "USB pair"
   (condition "A.inDiffPair('/USB_D')")
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
 (rule "Fan current"
-  (condition "A.NetName == '/VBUS' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
+  (condition "A.NetName == '/VBUS' || A.NetName == '/VIN_LOGIC' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
   (constraint track_width (min 0.3mm)))
 """
 

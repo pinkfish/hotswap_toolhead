@@ -98,6 +98,7 @@ if os.environ.get('PLAN_FILE'):
     exec(open(os.environ['PLAN_FILE']).read(), _g)
     PLAN, ESCAPE = _g['PLAN'], _g.get('ESCAPE', ESCAPE)
     NOTCHES = _g.get('NOTCHES', NOTCHES)
+    EDGE_OK = _g.get('EDGE_OK', EDGE_OK)   # parts allowed to overhang the outline
     HOLES &= set(PLAN)   # a plan without mounting holes
 
 

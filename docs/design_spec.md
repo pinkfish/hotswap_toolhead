@@ -1,183 +1,174 @@
-# USB Toolhead Board – Design Spec
+# CAN Toolhead Board – Design Spec
 
-Nov 10, 2026 (branch `usb-sh`)
+Nov 16, 2026 (branch `can-sh`)
 
 ## Overview
 
-One 19.5 × 23.5 mm, 4-layer board, powered and connected by a single USB-C cable. It reads a thermistor and a switch, and drives a 5 V fan. All three share one 6-pin JST-SH plug. It is built around an STM32G0B1 and runs Klipper over USB as a second MCU.
+One 27 × 34 mm, 4-layer board on a 24 V CAN bus. It drives a heater of up to 100 W and a 24 V fan, and reads a thermistor and a switch. It is built around an STM32G0B1 and runs Klipper over CAN as a second MCU (Katapult for updates).
 
-There is no heater output, no 24 V and no CAN: **the heater is wired straight to the printer's mainboard** on its own cable.
+All its connectors are small JST plugs, no XT30:
 
-This is the two-board 24 V CAN stack (branch `stack`) with the power input, CAN, heater driver, buck and board-to-board link taken out. The parts it shares with the stack's logic board keep their references.
+| Ref | Plug | Carries |
+| --- | --- | --- |
+| J1 | JST-XH 6-pin (2.5 mm) | 24 V and GND, two contacts each; CAN-H, CAN-L |
+| J3 | JST-XH 4-pin (2.5 mm) | Heater, two contacts per side |
+| J2 | JST-SH 6-pin (1 mm) | Fan, thermistor, switch |
+| J5 | JST-SH 4-pin (1 mm) | USB 2.0: VBUS, D−, D+, GND, wired to a USB socket elsewhere |
 
-Branch `usb-only` has the first version of this board: 22 × 30 mm with a 2 mm JST-PH plug, two M2.5 holes and a PT1000 header. This branch swaps the PH for a 1 mm JST-SH, swaps the holes for two M2 edge notches and turns the PT1000 header into a solder jumper, which takes the board from 660 to 458 mm² (31% smaller).
+This is the `usb-sh` board (one-board USB toolhead) with the stack's (branch `stack`) power input, 3.3 V buck, CAN and heater driver added back. The stack's reverse-polarity P-FET is left out, since the XH plug is keyed. The parts it shares with the stack keep their references.
 
 | Parameter | Target | Why |
 | --- | --- | --- |
-| Supply | USB VBUS, 4.75–5.25 V | USB-C carries one supply voltage (VBUS, 5 V unless USB-PD negotiates more) plus GND, so 24 V can't come down the USB cable |
-| Logic | 3.3 V LDO from VBUS, under 50 mA | No buck needed at 5 V in |
-| Fan output | 5 V from VBUS, 0.3 A or less, low-side PWM, flyback-protected | What a USB 2.0 port (0.5 A) can feed beside the logic; 5 V 30–40 mm fans draw 0.1–0.2 A |
-| Sensor input | 100k NTC (e.g. 3950) with a 4.7 kΩ pull-up, or PT1000 by solder jumper | As on the stack |
+| Supply | 24 V nominal, 12–30 V | Standard printer rail |
+| Heater output | 24 V, 4.2 A (100 W), low-side PWM | Up to a 100 W cartridge; each heater wire on two 3 A XH contacts |
+| Fan output | 24 V, up to 0.5 A, low-side PWM, flyback-protected | 2-wire 24 V fans |
+| Sensor input | 100k NTC (e.g. 3950), 4.7 kΩ pull-up; PT1000 by solder jumper | |
 | Switch input | Switch to GND, 10 kΩ pull-up, RC filter | Endstop, probe or filament switch |
-| USB | USB 2.0 Full Speed, USB-C receptacle, device mode | Klipper's USB-serial; DFU and Katapult for flashing |
+| CAN | Classic CAN, 500 kbit/s or 1 Mbit/s, solder-jumper 120 Ω termination | Klipper default rates |
+| USB | USB 2.0 Full Speed on a 4-pin plug; powers the logic on its own | First flash, bench use |
+| Input fuse | 8 A | Protects the harness if the heater FET fails short |
 
-**Why an STM32 and not an ESP32:** mainline Klipper has no ESP32 port. The STM32G0B1 is one of Klipper's best-supported MCUs, and the stack had already routed it.
+## Connector currents
 
-## Heater on the mainboard
+A 100 W heater draws 4.2 A at 24 V; with a 0.5 A fan the board takes about 4.7 A.
 
-The heater cartridge is wired to a heater output on the mainboard, on its own two-wire cable. The thermistor stays on this board, so in Klipper the heater's `heater_pin` names a mainboard pin and its `sensor_pin` names a pin on this board (`tool:PB12`).
-
-**Not yet checked:** that Klipper runs a heater whose pin and sensor are on different MCUs.
-
-- Klipper's config doesn't forbid it, and the host runs the PID loop. But the heater's safety shutdown (`max_duration` on the heater pin) and the sensor's reporting timing then live on different MCUs.
-- If Klipper refuses the config or the heater misbehaves, wire the thermistor to the mainboard as well, and use this board's thermistor input for a chamber or part-cooling sensor.
+- **J1:** 24 V on pins 1–2 and GND on pins 3–4, 2.35 A per contact, under the XH's 3 A.
+- **J3:** HEAT− on pins 1–2 and +24 V on pins 3–4, 2.1 A per contact. The heater isn't polarised.
+- **Wire:** 22 AWG (0.34 mm²) in the XH crimps for J1's power pins and J3; the XH contacts take 22–28 AWG.
+- **J2 and J5:** SH contacts are rated 1 A. The fan draws at most 0.5 A; USB under 0.5 A.
 
 ## Power
 
-1. **VBUS:** from J5 through the USBLC6's VBUS clamp (U5) to C17 (10 µF). The CC pull-downs (R20, R21, 5.1 kΩ) make any USB-C host or charger turn VBUS on. There is no fuse on VBUS: the host port limits its own current, and the fan has its own PTC.
-2. **3.3 V LDO (U1):** Microne ME6211C33M5G-N (C82942, SOT-23-5, 500 mA, about 100 mV dropout at 100 mA), with CE tied to VIN and 1 µF in (C4) and out (C8). C10 (10 µF) is the 3.3 V bulk by U6.
-3. **Analog reference:** VREF+ (pin 5) and the thermistor pull-up are fed from 3.3 V through FB1 (600 Ω at 100 MHz), with 1 µF + 100 nF (C11, C12) to pin 7. This keeps the reading ratiometric, as on the stack.
-4. **Budget:** the logic takes about 40 mA. A 0.3 A fan brings the total to about 0.35 A, inside a USB 2.0 port's 0.5 A. Many mainboard USB-A ports are only rated 0.5 A in total, and a 0.5 A fan would sit right at that limit.
+1. **Fuse (F1):** 8 A 1206 fast-acting fuse (Littelfuse 0458008.DR, C187562, 63 V). Sized as on the stack: 4.7 A is under 75% of its rating after derating for 70 °C.
+2. **TVS (D1):** SMF33CA (bidirectional, 200 W, SOD-123FL) from +24V to GND, right after the fuse.
+3. **No reverse-polarity FET:** the XH plug only fits one way. If the supply is ever wired reversed, Q2's body diode conducts through the heater: the heater runs at full power and Q2 dissipates about 3.4 W (0.8 V × 4.2 A), which F1 (8 A) doesn't stop and which will overheat Q2 within seconds to minutes. The fan path is limited by F2. Check the polarity of a new harness before first power-up.
+4. **Bulk capacitance:** 2 × 10 µF / 50 V X5R 1206 (C1, C2), on the bottom under the +24V strip. As on the stack, there's no electrolytic, so plug J1 in with the supply off.
+5. **Logic supply:** +24V → D7 and USB VBUS → D3 (both DSK110 Schottkys) feed VIN_LOGIC, so the board runs from either. VIN_LOGIC feeds a TI LMR16006X buck (U1, 4–60 V, 0.6 A, SOT-23-6) with D9 as catch diode, L1 22 µH (FNR4030S220MT) and C8 22 µF. R2/R3 (33k/10k) set 3.29 V. It runs from VBUS through D3 (about 4.6 V) for programming without 24 V.
+6. **Analog reference:** VREF+ and the thermistor pull-up from 3.3 V through FB1 (600 Ω at 100 MHz), with 1 µF + 100 nF (C11, C12), as on the stack.
 
 LEDs: yellow-green on 3.3 V (power, R5 1 kΩ) and blue status on PA15 (R6 100 Ω).
 
-## Microcontroller
+## Heater output
 
-STM32G0B1CEU6 (C2829190): 512 KB flash, UFQFPN-48 7 × 7 mm, exposed pad to GND.
+As on the stack:
 
-- **Why the CE:** it has the same pinout and package as the stack's 128 KB CBU6. JLCPCB had 461 of the CEU6 in November 2026 but only 6 of the CBU6.
-- **Crystal:** the 8 MHz crystal (Y1, 20 pF load, 2 × 33 pF C0G) is required. Klipper's STM32G0 code clocks USB from the PLL, and the internal oscillator is outside USB's 0.25% tolerance.
-
-| Function | Pin | Notes |
-| --- | --- | --- |
-| USB D− / D+ | PA11 / PA12 (33 / 34) | Through U5 to J5 |
-| Fan PWM | PB13 (25) | R15 1 kΩ to Q3's gate; R16 10 kΩ pull-down holds the fan off through reset |
-| Thermistor | PB12 (24) | ADC1_IN16, RC-filtered and clamped |
-| Switch | PB8 (47) | R22 10 kΩ pull-up, R23 1 kΩ + C20 100 nF filter |
-| Status LED | PA15 (37) | Blue, 100 Ω |
-| SWCLK / BOOT0 | PA14 (36) | BOOT pads (JP3) to 3.3 V through R4 (1 kΩ); no SWD header |
-| HSE | PF0 / PF1 (8 / 9) | 8 MHz crystal |
-| Reset | NRST (10) | C15 100 nF, RESET button (SW1) to GND |
-
-The fan, switch and status LED are on the pins nearest their parts, so their tracks don't cross the board (on `usb-only` they were PA8, PB13 and PB5). Klipper drives a fan and reads a switch on any GPIO; the fan uses software PWM by default.
+- **FET (Q2):** AON7264E (C431191), 60 V, DFN 3 × 3 mm, 9.5 mΩ max at 10 V gate (about 13 mΩ hot): about 0.23 W at 4.2 A.
+- **Gate driver (U7):** UCC27517 (C99395), non-inverting, from PB9. Its UVLO and input pull-down, and R14 (10 kΩ from PB9 to GND), hold the heater off through reset, before the firmware runs, and on USB power alone.
+- **12 V gate rail:** R13 (10 kΩ) from VIN_LOGIC, clamped by D10 (BZX585-C12) with C21 (1 µF).
+- **Safety:** Klipper's `verify_heater` and thermal-runaway checks are the primary protection. For an unattended machine, add a thermal fuse in the heater block.
 
 ## Fan output
 
-- **Supply:** the fan runs from VBUS (5 V) through F2. F2 is a 0.5 A hold, 16 V PTC (BSMD1206-050-16V, C883124, 1206). A PTC's hold current drops to about two-thirds at 70 °C, so keep the fan at 0.3 A or less. F2 protects the USB port and the plug if the fan cable shorts.
-- **Switch (Q3):** WST6066A, 60 V N-MOSFET in SOT-23, 120 mΩ at 2.5 V gate, driven straight from PB13.
-- **Flyback (D5):** DSK110 Schottky across the fan, cathode to FAN+.
-- **PWM:** a 2-wire 5 V fan at about 100 Hz–1 kHz (`cycle_time: 0.01` or shorter).
+- **Supply:** +24V through F2, a 0.75 A hold 33 V PTC (JK-mSMD075-33, C369169, 1812).
+- **Switch (Q3):** WST6066A (60 V, SOT-23), from PB13 through R15 (1 kΩ), R16 (10 kΩ) pull-down.
+- **Flyback (D5):** DSK110 across the fan.
+
+The `usb-sh` board ran a 5 V fan from USB; this one runs a 24 V fan.
+
+## CAN
+
+As on the stack: TI TCAN3414 transceiver (U3, VSON-8, ±58 V bus fault protection) on FDCAN2 (PB0 RX, PB1 TX), NUP2105L ESD (D4) by J1, and a 120 Ω termination (R11) through solder jumper JP1. Bridge JP1 only on the board at the end of the bus.
+
+## USB
+
+J5 is a 4-pin JST-SH: 1 VBUS, 2 D−, 3 D+, 4 GND (USB-A pin order). There is no USB-C socket on the board.
+
+- **The other end:** a small USB-C socket board (panel-mount or breakout) wired to J5. It must have the two **5.1 kΩ CC pull-downs**: without them a USB-C host or a C-to-C cable won't turn VBUS on. A USB-A to C cable works without them.
+- **Cable:** twisted D+/D−, under about 30 cm. USB Full Speed (12 Mbit/s) doesn't need a matched pair at that length.
+- **ESD:** U5 (USBLC6-2SC6) and C17 (10 µF) on VBUS, as before.
+- USB is for the first flash and the bench. In the printer, run Klipper over CAN.
+
+## Microcontroller
+
+STM32G0B1CEU6 (C2829190): 512 KB flash, UFQFPN-48, exposed pad to GND, 8 MHz crystal (Y1).
+
+| Function | Pin | Notes |
+| --- | --- | --- |
+| CAN RX / TX | PB0 / PB1 (19 / 20) | FDCAN2, to U3 |
+| USB D− / D+ | PA11 / PA12 (33 / 34) | Through U5 to J5 |
+| Heater PWM | PB9 (48) | To U7's IN+; R14 pull-down |
+| Fan PWM | PB13 (25) | R15 to Q3's gate; R16 pull-down |
+| Thermistor | PB12 (24) | ADC1_IN16, RC-filtered and clamped |
+| Switch | PB3 (42) | R22 pull-up, R23 + C20 filter. PB8, used on `usb-sh`, is boxed in here beside the heater's PB9 |
+| Status LED | PA15 (37) | Blue, 100 Ω |
+| SWCLK / BOOT0 | PA14 (36) | BOOT pads (JP3) to 3.3 V through R4 |
+| HSE | PF0 / PF1 (8 / 9) | 8 MHz crystal |
+| Reset | NRST (10) | C15, RESET button (SW1) |
 
 ## Sensor inputs
 
-- **Thermistor:** R17 (4.7 kΩ 0.1%, 25 ppm) from VREFP to TH_SIG. Bridging solder jumper JP2 adds R18 (4.12 kΩ 0.1%) in parallel for a PT1000, giving about 2.2 kΩ. TH_SIG then goes through R19 (1 kΩ) and C19 (100 nF) to PB12, and D6 (BAT54S) clamps PB12 to 3.3 V and GND.
-- **Thermistor return:** J2 pin 4 goes to the board's GND. No load current flows in this board's ground apart from the fan's 0.3 A, which returns through Q3, so the thermistor doesn't need its own return as it did on the stack.
-- **Switch:** J2 pin 5 (SENS) has R22 (10 kΩ) to 3.3 V, then R23 (1 kΩ) and C20 (100 nF) to PB8. The switch closes to J2 pin 6 (GND).
+- **Thermistor:** R17 (4.7 kΩ 0.1%) from VREFP to TH_SIG; solder jumper JP2 adds R18 (4.12 kΩ) in parallel for a PT1000 (about 2.2 kΩ). R19 (1 kΩ), C19 (100 nF) and D6 (BAT54S clamp) before PB12.
+- **Thermistor return:** J2 pin 4 is GND at the bottom-left, by U6. The heater's return runs on the other side of the board: a top-layer GND pour from Q2's source straight up to J1's GND pins. So heater current doesn't flow through the GND under the thermistor's return.
+- **Switch:** J2 pin 5 (SENS), R22 (10 kΩ) to 3.3 V, R23 (1 kΩ) and C20 (100 nF) to PB3; closes to J2 pin 6 (GND).
 
 ## Connectors
 
-| Ref | Function | Part | Pinout |
-| --- | --- | --- | --- |
-| J5 | USB | HRO TYPE-C-31-M-12 16-pin USB-C (C165948), on the top edge, plug pointing up | VBUS, D+/D− (both rows tied), CC1/CC2 to GND through 5.1 kΩ, shell to GND |
-| J2 | Fan, thermistor, switch | JST SH 1.0 mm 1×6, right-angle SMD, SM06B-SRSS-TB(LF)(SN) (C160405), on the bottom edge, plug pointing down; 1 A per contact, 28–32 AWG. Mating housing SHR-06V-S-B with SSH-003T-P0.2 contacts, or a pre-crimped SH cable | 1 FAN+ (5 V via F2), 2 FAN− (Q3 drain), 3 TH_SIG, 4 thermistor GND, 5 SENS, 6 GND |
-| JP2 | PT1000 pull-up | Two solder pads on the bottom, open by default | Bridged: PT1000 |
-| JP3 | BOOT | Two solder pads, shorted with tweezers | |
-| SW1 | RESET | Panasonic EVQ-P7C01P side-push (C388883), on the right edge | |
+| Ref | Part | Pinout |
+| --- | --- | --- |
+| J1 | JST S6B-XH-SM4-TB(LF)(SN), XH 2.5 mm 1×6, right-angle SMD (C191914), top edge, plug pointing up. Housing XHP-6, contacts SXH-001T-P0.6 | 1–2 +24V, 3–4 GND, 5 CAN-H, 6 CAN-L |
+| J3 | JST S4B-XH-SM4-TB(LF)(SN), XH 1×4 (C161861), bottom edge right, plug pointing down. Housing XHP-4 | 1–2 heater (HEAT−, to Q2), 3–4 heater (+24V) |
+| J2 | JST SM06B-SRSS-TB(LF)(SN), SH 1 mm 1×6 (C160405), bottom edge left. Housing SHR-06V-S-B, contacts SSH-003T-P0.2 | 1 FAN+ (24 V via F2), 2 FAN−, 3 TH_SIG, 4 thermistor GND, 5 SENS, 6 GND |
+| J5 | JST SM04B-SRSS-TB(LF)(SN), SH 1×4 (C160404), left edge. Housing SHR-04V-S-B | 1 VBUS, 2 D−, 3 D+, 4 GND |
+| JP1 | CAN termination, solder pads, open | Bridged: 120 Ω across CAN-H/CAN-L |
+| JP2 | PT1000 pull-up, solder pads, open | Bridged: PT1000 |
+| JP3 | BOOT, two pads shorted with tweezers | |
+| SW1 | RESET, EVQ-P7C01P side-push (C388883), right edge | |
 
-**Mounting:** two M2 half-hole notches (2.2 mm), diagonally opposite: on the left edge 16.2 mm down and on the right edge 9.0 mm down. Put an M2 screw through each into the printed mount, and the screw head clamps the board edge. Parts, tracks, vias and pours stay 2.1 mm from each notch's centre on both sides, room for an M2 pan or button head up to 4 mm across. The mount needs a recess under the bottom-side parts (U6 and the rest, about 1.2 mm high) and should let the board rest on its edges around the notches.
-
-**USB cable:** use a shielded cable that is as short as the toolhead's travel allows. The cable carries the fan current as well as data, so a thin, long cable loses VBUS voltage. The board needs at least about 3.4 V at the LDO input to hold 3.3 V; the fan just slows down a little.
-
-USB in a printer's cable chain is more exposed to noise than CAN, so if Klipper reports `Lost communication with MCU`:
-- check the cable and its shield first;
-- then the host port.
-
-## Bill of materials
-
-38 placements, 24 BOM lines (`hardware/toolhead_usb-bom-jlcpcb.csv`; `hardware/bom_jlcpcb.csv` is the same). JP2 and JP3 are bare pads.
-
-| Ref | Part | Package | LCSC |
-| --- | --- | --- | --- |
-| U6 | STM32G0B1CEU6 | UFQFPN-48 | C2829190 |
-| U1 | ME6211C33M5G-N 3.3 V LDO | SOT-23-5 | C82942 |
-| U5 | USBLC6-2SC6 USB ESD | SOT-23-6 | C7519 |
-| Q3 | WST6066A 60 V N-MOSFET | SOT-23 | C148352 |
-| D5 | DSK110 100 V 1 A Schottky | SOD-123F | C22466354 |
-| D6 | BAT54S | SOT-23 | C7420333 |
-| F2 | PTC 0.5 A hold 16 V, BSMD1206-050-16V | 1206 | C883124 |
-| Y1 | 8 MHz 20 pF crystal, YXC X32258MSB4SI | 3225 | C2682774 |
-| FB1 | 600 Ω at 100 MHz ferrite | 0402 | C76884 |
-| J5 | USB-C 16-pin, HRO TYPE-C-31-M-12 | SMD + THT shell | C165948 |
-| J2 | JST SM06B-SRSS-TB(LF)(SN) | SMD | C160405 |
-| SW1 | EVQ-P7C01P | SMD | C388883 |
-| LED1, LED2 | Yellow-green, blue | 0603 | C2289, C2288 |
-| R17, R18 | 4.7 kΩ and 4.12 kΩ, 0.1% 25 ppm | 0402 | C281778, C852812 |
-| R, C | 100 Ω, 1 kΩ ×5, 5.1 kΩ ×2, 10 kΩ ×2; 33 pF ×2, 100 nF ×5, 1 µF ×3, 10 µF ×2 | 0402, 0805 | JLCPCB basic parts |
+**Mounting:** two M2 half-hole notches (2.2 mm), diagonally opposite: right edge 5.5 mm down (beside J1) and left edge 24.5 mm down (above J2). Parts, tracks, vias and pours stay 2.1 mm from each notch's centre on both sides. The mount needs a recess under the bottom-side parts (L1 is the tallest, 3 mm).
 
 ## Layout
 
-- **Stackup:** 4 layers, 1.6 mm, 1 oz outer copper. Layers:
-  - F.Cu: J5, J2, SW1, the LEDs and their resistors, the fan FET with its gate resistors and flyback diode, the thermistor divider, filter and clamp, and the switch filter.
-  - In1: solid GND.
-  - In2: signals.
-  - B.Cu: U6 and its crystal and decoupling, U5 and C17, U1 with C4, C8 and C10, F2, the CC pull-downs, and the BOOT and PT1000 jumpers.
-  - Both outer layers carry a GND pour.
+- **Stackup:** 4 layers, 1.6 mm, 1 oz outer copper. In1 is solid GND, In2 signals.
 - **Floorplan (top view):**
-  - USB-C on the top edge, centred, plug pointing up.
-  - The SH plug on the bottom edge, plug pointing down, so the cable leaves straight down. Its hold-down pads are 0.5 mm in from the edge, so the housing overhangs the edge by about 0.7 mm. It sits 0.35 mm right of centre so that its pad row and right hold-down pad clear the MCU corner's vias.
-  - The LEDs and their resistors right of the USB-C; RESET on the right edge, between the connectors.
-  - U6 in the middle of the bottom side, turned so its USB pins face J5. The stack's hand-laid crystal and decoupling corner is brought across with it (`tools/layout/corner_import.py`). It has to face J2, because U6's USB pins are on the opposite side of the package.
-  - Each side follows U6's pins: the fan, thermistor and PT1000 jumper on the left, by PB12/PB13; the status LED, BOOT pads and the switch filter on the right, by PA15, PA14 and PB8.
-- **Why 19.5 × 23.5 mm:** the parts sit in an 18 × 23.5 mm area. 16 × 22 placed but left 12–16 connections open; 17 × 22 to 17 × 24 left 1–10. Two things set that size. The side columns beside U6's pins must take a SOT-23 (4.4 mm at 18 mm wide). And the right column has to fit C17, the BOOT pads and their resistor above RESET's peg holes, with the +3V3 pad facing U6 so it can be reached. The notches add a 0.75 mm strip down each side: with it, each notch's keep-out reaches only 1.35 mm into the parts area. That fits in the gap between the fan gate resistors and the flyback diode on the left, and on the right between LED2 and RESET on top and between C17 and the BOOT pads below. For that, R6 sits beside LED2 and the BOOT pads are 0.9 mm further in.
-- **USB pair** (`tools/layout/usb_pair_pre.py`, locked before routing): J5's pad row is right over U6's USB pins, and the two parts' pin orders cross.
-  - D+ is strapped above J5's pad row and D− below it, each to a via in its U5 pin.
-  - D− runs straight down to U6 pin 33 on the bottom layer.
-  - D+ crosses over D−'s via on In2 to a second via, then comes down to pin 34 beside D−.
-  - U5's GND pin, boxed in by the pair, has its own via.
-  - J5's right-hand VBUS pad (A4/B9) and CC1 (A5) are boxed in too. Both leave along under the pad row on the top layer. VBUS goes to a via right of J5's shell leg and on to C17; CC1 runs below it to a via further right, which leaves the strip right of J5 for the LEDs. The script shifts these coordinates with the board's centre line.
-- **Routing:** placed by `tools/layout/plan_usb.py` and routed by `tools/layout/run_usb.sh`: Freerouting 1.9.0, then a scripted maze router.
-- **As routed:** 0 DRC errors, 0 unconnected, schematic parity clean; 64 vias and 440 mm of track. The only warnings are J5's silkscreen at the board edge. The committed board is from `FR_PASSES=100`, `MAZE_ITER=3`, `SOFT_ITERS=0`, which left one net (SWCLK) open; `ripup_loop.sh` with 8 passes on its `routed.kicad_pcb` connected it, followed by run_usb.sh's clean-up steps. A run with 200 passes left 2 open.
+  - J1 across the top edge: +24V pins on the right, CAN on the left over U6's CAN pins.
+  - J3 bottom right, J2 bottom left, J5 on the left edge.
+  - Top side, in the band between J1 and J3: F1 under J1's +24V pins; the +24V strip down to J3's +24V pins with D1 at its side; Q2 over J3's HEAT− pins with U7 and its 12 V rail left of it; RESET and, below it, the LEDs right of the strip.
+  - Bottom side: U6 and its crystal corner in the middle; CAN, the BOOT pads and C10 under J1; USB ESD and the thermistor network down the left; the fan driver under J2 and the buck under J3; C1 and C2 under the strip.
+- **Power path** (`tools/layout/can_pre.py`, poured before routing, top layer): VIN_RAW from J1 pins 1–2 to F1; the +24V strip from F1 to J3 pins 3–4, 2.6 mm wide (about 5 A in 1 oz outer copper at a 10 °C rise), which leaves a column for vias between it and SW1/the LEDs; HEAT− from J3 pins 1–2 to Q2's drain; and the GND return beside the strip, from Q2's source and D1 up to J1 pins 3–4. Each pour is built from the pads, so it follows the placement. U6 sits under the heater stage, so the return stays on the top layer instead of dropping through vias. `planes_fanout.py` keeps other nets' fan-out vias out of these pours. Freerouting treats them as planes it may cross, so `pour_clear.py` takes other nets' copper back out of them after routing, and the maze router (which treats them as obstacles) reroutes it.
+- **Why 27 × 34 mm:** the two XH plugs set it. J1's footprint is 21.7 × 12 mm and J3's 16.7 × 12 mm (pads plus body), so the band between them on the top side is 10 mm. Across the bottom edge, J3 and J2 side by side, with 0.5 mm from each hold-down pad to the edge, need 27 mm.
+- **Routing:** placed by `tools/layout/plan_can.py`, routed by `tools/layout/run_can.sh` (Freerouting 1.9.0, then the maze router).
+- **As routed:** 0 DRC errors, 0 unconnected, schematic parity clean; 113 vias and 828 mm of track; each power pour fills in one piece. The only warnings are two vias that join bottom-layer track ends (LED2_A, SENS_IN). The committed board is from `FR_PASSES=200`, `MAZE_ITER=12`, `SOFT_ITERS=0`, which left 3 connections open; 10 more `ripup_loop.sh` passes on its `maze.kicad_pcb` closed them, followed by run_can.sh's clean-up steps. A 100-pass run, finished the same way, had 4 DRC errors.
+- **Pin changes on the way:** SENS_IN moved from PB8 (pin 47) to PB3 (42), whose escape isn't boxed in by the heater's PB9. Q2 sits 1.55 mm right of the centre of J3's HEAT− pins and U7 1.2 mm further left than first planned, so the drain and U7's OUT pad clear U6's corner vias underneath (on the stack these join VBAT and VDD through In2). SW1 sits above the LEDs so both side edges are clear at y 19–22 for the panel's lower mouse bites.
 
 ## Panel
 
-Order the board as a panel of 9, 6 or 4 built by `tools/make_panel.sh` (see `gerber/README.md`):
+Order the board as a panel built by `tools/make_panel.sh` (see `gerber/README.md`):
 
 | Panel | Grid | Size | Folders |
 | --- | --- | --- | --- |
-| 9 | 3 × 3 | 76.8 × 92.8 mm | `hardware/panel/`, `gerber/panel/` |
-| 6 | 3 columns × 2 rows | 76.8 × 72.0 mm | `hardware/panel6/`, `gerber/panel6/` |
-| 4 | 2 × 2 | 72.0 × 72.0 mm | `hardware/panel4/`, `gerber/panel4/` |
+| 9 | 3 × 3 | 99.3 × 124.3 mm | `hardware/panel/`, `gerber/panel/` |
+| 6 | 3 columns × 2 rows | 99.3 × 88.2 mm | `hardware/panel6/`, `gerber/panel6/` |
+| 4 | 2 × 2 | 72.0 × 88.2 mm | `hardware/panel4/`, `gerber/panel4/` |
 
-- **Size:** JLCPCB's standard assembly needs a panel of at least 70 × 70 mm. Where the boards and the 5 mm frame come to less than 72 mm on a side, the gap between the boards and the frame is widened.
+60 parts per board (45 on the bottom), 38 BOM lines; JP1–JP3 are bare pads. Mouse bites at y 2.3 and 20.75 on both side edges.
+
+- **Size:** JLCPCB's standard assembly needs a panel of at least 70 × 70 mm.
 - **Holding the boards:** mouse bites on the side edges, clear of the notches (`tools/panel_tabs.py`), four tooling holes and three fiducials.
-- **After every layout change:** rebuild all three panels.
 
 ## Bring-up and firmware
 
-1. **Plug in USB:** check 3.3 V. A blank MCU enumerates as an STM32 DFU device by itself. If it doesn't, short the BOOT pads and tap RESET.
-2. **Build Klipper** (`make menuconfig`):
-   - STM32G0B1, 8 MHz crystal.
-   - Communication: USB (on PA11/PA12).
-   - Bootloader offset: "No bootloader" when flashing over DFU, or 8 KiB with Katapult.
-3. **Flash it:** `make flash FLASH_DEVICE=0483:df11`.
-4. **Find the port:** `ls /dev/serial/by-id/`.
+1. **First flash over USB:** wire J5 to a USB socket and plug it into the host, with no 24 V. Check 3.3 V. A blank MCU comes up as an STM32 DFU device; if not, short the BOOT pads and tap RESET.
+2. **Flash Katapult** (STM32G0B1, 8 MHz crystal, CAN on PB0/PB1, 8 KiB offset), then Klipper over CAN:
+   - Klipper `make menuconfig`: STM32G0B1, 8 KiB bootloader, 8 MHz crystal, "CAN bus (on PB0/PB1)", 1000000 (or your bus rate).
+   - `python3 ~/katapult/scripts/flashtool.py -i can0 -q` to find the UUID, then `flashtool.py -i can0 -u <uuid> -f out/klipper.bin`.
+3. **24 V and CAN:** plug in J1 (supply off), then power up. Bridge JP1 if this board ends the bus.
 
-Example config. Replace the serial path, and set `heater_pin` to the mainboard's heater output:
+Example config:
 
 ```
 [mcu tool]
-serial: /dev/serial/by-id/usb-Klipper_stm32g0b1xx_0123456789ABCDEF-if00
+canbus_uuid: 0123456789ab
 
 [extruder]
-heater_pin: PA2                    # the mainboard's heater output
+heater_pin: tool:PB9
 sensor_type: Generic 3950
 sensor_pin: tool:PB12
 pullup_resistor: 4700
+max_power: 1.0
 # ... step_pin, dir_pin etc. as before
 
 [heater_fan hotend_fan]
 pin: tool:PB13
-cycle_time: 0.01
 heater: extruder
 heater_temp: 50.0
 
@@ -189,18 +180,16 @@ sensor_type: temperature_mcu
 sensor_mcu: tool
 
 [filament_switch_sensor tool_switch]
-switch_pin: !tool:PB8
+switch_pin: !tool:PB3
 pause_on_runout: True
 ```
 
-Notes on the config:
-
-- **Pull-up:** PB8 has its own pull-up (R22), so it needs no `^`. The switch closes to GND, and `!` makes a closed switch read as filament present. As an endstop, use `endstop_pin: !tool:PB8` instead.
-- **PT1000:** bridge JP2 with solder and set `sensor_type: PT1000` and `pullup_resistor: 2200`.
-- **Order:** run `PID_CALIBRATE` after the first heat-up, with the fan running.
+- **PT1000:** bridge JP2 and set `sensor_type: PT1000`, `pullup_resistor: 2200`.
+- **Switch:** PB3 has its own pull-up (R22), so no `^`; `!` reads a closed switch as present. As an endstop: `endstop_pin: !tool:PB3`.
 
 **Prototype checks:**
 
-- [ ] Klipper accepts a heater on the mainboard with its sensor on this board, and the heater holds temperature and trips `verify_heater` when the thermistor is unplugged.
-- [ ] USB stays connected through a long print with the fan running (cable and EMI).
-- [ ] The crystal starts reliably (20 pF load with 33 pF caps; ST AN2867).
+- [ ] The heater at 100 W for 30 minutes: F1, Q2, J1 and J3 temperatures (the XH contacts are the tightest margin, 2.35 A of 3 A).
+- [ ] Heater off through reset, during flashing and on USB power alone.
+- [ ] CAN at 1 Mbit/s through a long print.
+- [ ] The crystal starts reliably (20 pF load with 33 pF caps).

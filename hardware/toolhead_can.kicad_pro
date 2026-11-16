@@ -492,7 +492,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "toolhead_usb.kicad_pro",
+    "filename": "toolhead_can.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -789,8 +789,8 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "toolhead_usb.kicad_sch",
-        "name": "toolhead_usb",
+        "filename": "toolhead_can.kicad_sch",
+        "name": "toolhead_can",
         "uuid": "e542d436-2c03-554b-acbf-74b767fa8bfb"
       }
     ],
