@@ -8,7 +8,7 @@
 | --- | --- |
 | `toolhead_usb.kicad_pro` | The project file: open this in KiCad. Netclasses: Fan 0.4 / 0.3 mm, Supply and USB 0.3 / 0.2 mm |
 | `toolhead_usb.kicad_sch` | Schematic: 40 parts. Blocks: logic supply, MCU, USB, the plug, fan, thermistor, switch |
-| `toolhead_usb.kicad_pcb` | The routed board: 18 × 23.5 mm, 4 layers, no mounting holes |
+| `toolhead_usb.kicad_pcb` | The routed board: 19.5 × 23.5 mm, 4 layers, two M2 edge notches |
 | `toolhead_usb.kicad_dru` | Custom design rules: USB pair, and the fan current's minimum track width |
 | `toolhead_usb-bom-jlcpcb.csv`, `bom_jlcpcb.csv` | The BOM in JLCPCB's upload format (the two are the same). The PT1000 and BOOT pads (JP2, JP3) are left out; every other part is placed |
 | `panel/`, `panel6/`, `panel4/` | The panels to order: 9, 6 or 4 boards, built by `../tools/make_panel.sh` |

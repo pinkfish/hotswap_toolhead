@@ -4,7 +4,8 @@ J1/J5 and J2 overhang the top and bottom edges, so the boards are held by side t
 per side. In a panel row every board is the same one, so a tab at height y on a board's right
 edge meets the next board's left edge at the same y: a tab goes only where the 0.6 mm strip
 along both side edges has no copper (pads, tracks, vias; a 0.5 mm bite hole centred on the edge
-reaches 0.25 mm in) and no part overhangs either side edge (its courtyard crosses it). The two
+reaches 0.25 mm in), no part overhangs either side edge (its courtyard crosses it) and no edge
+notch's keep-out reaches. The two
 tabs go as far apart as the clear windows allow, at the top of the first and the bottom of the
 last (both in one window if it is long enough), each 1.4-1.8 mm wide with 0.3 mm to spare.
 """
@@ -43,6 +44,10 @@ for f in b.GetFootprints():
             block(c.BBox(), 0)
 for t in b.GetTracks():
     block(t.GetBoundingBox())
+# the edge notches' screw-head keep-outs (place.py): no tab in a notch
+for z in b.Zones():
+    if z.GetIsRuleArea() and z.GetZoneName().endswith('notch keep-out'):
+        block(z.GetBoundingBox())
 blocked.sort()
 free, y = [], CORNER
 for y0, y1 in blocked + [(H - CORNER, H)]:

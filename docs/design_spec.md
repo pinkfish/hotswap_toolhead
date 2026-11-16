@@ -4,13 +4,13 @@ Nov 10, 2026 (branch `usb-sh`)
 
 ## Overview
 
-One 18 × 23.5 mm, 4-layer board, powered and connected by a single USB-C cable. It reads a thermistor and a switch, and drives a 5 V fan. All three share one 6-pin JST-SH plug. It is built around an STM32G0B1 and runs Klipper over USB as a second MCU.
+One 19.5 × 23.5 mm, 4-layer board, powered and connected by a single USB-C cable. It reads a thermistor and a switch, and drives a 5 V fan. All three share one 6-pin JST-SH plug. It is built around an STM32G0B1 and runs Klipper over USB as a second MCU.
 
 There is no heater output, no 24 V and no CAN: **the heater is wired straight to the printer's mainboard** on its own cable.
 
 This is the two-board 24 V CAN stack (branch `stack`) with the power input, CAN, heater driver, buck and board-to-board link taken out. The parts it shares with the stack's logic board keep their references.
 
-Branch `usb-only` has the first version of this board: 22 × 30 mm with a 2 mm JST-PH plug, two M2.5 holes and a PT1000 header. This branch swaps the PH for a 1 mm JST-SH, drops the holes and turns the PT1000 header into a solder jumper, which takes the board from 660 to 423 mm² (36% smaller).
+Branch `usb-only` has the first version of this board: 22 × 30 mm with a 2 mm JST-PH plug, two M2.5 holes and a PT1000 header. This branch swaps the PH for a 1 mm JST-SH, swaps the holes for two M2 edge notches and turns the PT1000 header into a solder jumper, which takes the board from 660 to 458 mm² (31% smaller).
 
 | Parameter | Target | Why |
 | --- | --- | --- |
@@ -84,7 +84,7 @@ The fan, switch and status LED are on the pins nearest their parts, so their tra
 | JP3 | BOOT | Two solder pads, shorted with tweezers | |
 | SW1 | RESET | Panasonic EVQ-P7C01P side-push (C388883), on the right edge | |
 
-**Mounting:** there are no holes. Hold the board in a printed pocket or clip on the toolhead, by its edges; the USB-C shell and the plug take the cable forces through their own pads.
+**Mounting:** two M2 half-hole notches (2.2 mm), diagonally opposite: on the left edge 16.2 mm down and on the right edge 9.0 mm down. Put an M2 screw through each into the printed mount, and the screw head clamps the board edge. Parts, tracks, vias and pours stay 2.1 mm from each notch's centre on both sides, room for an M2 pan or button head up to 4 mm across. The mount needs a recess under the bottom-side parts (U6 and the rest, about 1.2 mm high) and should let the board rest on its edges around the notches.
 
 **USB cable:** use a shielded cable that is as short as the toolhead's travel allows. The cable carries the fan current as well as data, so a thin, long cable loses VBUS voltage. The board needs at least about 3.4 V at the LDO input to hold 3.3 V; the fan just slows down a little.
 
@@ -128,7 +128,7 @@ USB in a printer's cable chain is more exposed to noise than CAN, so if Klipper 
   - The LEDs and their resistors right of the USB-C; RESET on the right edge, between the connectors.
   - U6 in the middle of the bottom side, turned so its USB pins face J5. The stack's hand-laid crystal and decoupling corner is brought across with it (`tools/layout/corner_import.py`). It has to face J2, because U6's USB pins are on the opposite side of the package.
   - Each side follows U6's pins: the fan, thermistor and PT1000 jumper on the left, by PB12/PB13; the status LED, BOOT pads and the switch filter on the right, by PA15, PA14 and PB8.
-- **Why 18 × 23.5 mm:** 16 × 22 placed but left 12–16 connections open; 17 × 22 to 17 × 24 left 1–10. Two things set the final size. The side columns beside U6's pins must take a SOT-23 (4.4 mm at 18 mm wide). And the right column has to fit C17, the BOOT pads and their resistor above RESET's peg holes, with the +3V3 pad facing U6 so it can be reached.
+- **Why 19.5 × 23.5 mm:** the parts sit in an 18 × 23.5 mm area. 16 × 22 placed but left 12–16 connections open; 17 × 22 to 17 × 24 left 1–10. Two things set that size. The side columns beside U6's pins must take a SOT-23 (4.4 mm at 18 mm wide). And the right column has to fit C17, the BOOT pads and their resistor above RESET's peg holes, with the +3V3 pad facing U6 so it can be reached. The notches add a 0.75 mm strip down each side: with it, each notch's keep-out reaches only 1.35 mm into the parts area. That fits in the gap between the fan gate resistors and the flyback diode on the left, and on the right between LED2 and RESET on top and between C17 and the BOOT pads below. For that, R6 sits beside LED2 and the BOOT pads are 0.9 mm further in.
 - **USB pair** (`tools/layout/usb_pair_pre.py`, locked before routing): J5's pad row is right over U6's USB pins, and the two parts' pin orders cross.
   - D+ is strapped above J5's pad row and D− below it, each to a via in its U5 pin.
   - D− runs straight down to U6 pin 33 on the bottom layer.
@@ -136,7 +136,7 @@ USB in a printer's cable chain is more exposed to noise than CAN, so if Klipper 
   - U5's GND pin, boxed in by the pair, has its own via.
   - J5's right-hand VBUS pad (A4/B9) and CC1 (A5) are boxed in too. Both leave along under the pad row on the top layer. VBUS goes to a via right of J5's shell leg and on to C17; CC1 runs below it to a via further right, which leaves the strip right of J5 for the LEDs. The script shifts these coordinates with the board's centre line.
 - **Routing:** placed by `tools/layout/plan_usb.py` and routed by `tools/layout/run_usb.sh`: Freerouting 1.9.0, then a scripted maze router.
-- **As routed:** 0 DRC errors, 0 unconnected, schematic parity clean; 62 vias and 456 mm of track. The only warnings are J5's silkscreen at the board edge. The committed board is one of two runs side by side that both routed fully (`FR_PASSES=200`, `MAZE_ITER=3`, `SOFT_ITERS=0`; the other used 100 passes).
+- **As routed:** 0 DRC errors, 0 unconnected, schematic parity clean; 64 vias and 440 mm of track. The only warnings are J5's silkscreen at the board edge. The committed board is from `FR_PASSES=100`, `MAZE_ITER=3`, `SOFT_ITERS=0`, which left one net (SWCLK) open; `ripup_loop.sh` with 8 passes on its `routed.kicad_pcb` connected it, followed by run_usb.sh's clean-up steps. A run with 200 passes left 2 open.
 
 ## Panel
 
@@ -144,12 +144,12 @@ Order the board as a panel of 9, 6 or 4 built by `tools/make_panel.sh` (see `ger
 
 | Panel | Grid | Size | Folders |
 | --- | --- | --- | --- |
-| 9 | 3 × 3 | 72.3 × 92.8 mm | `hardware/panel/`, `gerber/panel/` |
-| 6 | 3 columns × 2 rows | 72.3 × 72.0 mm | `hardware/panel6/`, `gerber/panel6/` |
+| 9 | 3 × 3 | 76.8 × 92.8 mm | `hardware/panel/`, `gerber/panel/` |
+| 6 | 3 columns × 2 rows | 76.8 × 72.0 mm | `hardware/panel6/`, `gerber/panel6/` |
 | 4 | 2 × 2 | 72.0 × 72.0 mm | `hardware/panel4/`, `gerber/panel4/` |
 
 - **Size:** JLCPCB's standard assembly needs a panel of at least 70 × 70 mm. Where the boards and the 5 mm frame come to less than 72 mm on a side, the gap between the boards and the frame is widened.
-- **Holding the boards:** mouse bites on the side edges (`tools/panel_tabs.py`), four tooling holes and three fiducials.
+- **Holding the boards:** mouse bites on the side edges, clear of the notches (`tools/panel_tabs.py`), four tooling holes and three fiducials.
 - **After every layout change:** rebuild all three panels.
 
 ## Bring-up and firmware

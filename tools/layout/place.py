@@ -16,6 +16,11 @@ OX, OY = 100.0, 100.0
 # clear circle around each M2.5 hole on both sides, for a heat-set insert in a
 # printed base: 2.7 mm radius, enough for an M2.5 screw head or washer
 KEEP_R = 2.7
+# edge notches (NOTCHES, board mm centres on the outline, set by a PLAN_FILE): an M2 half-hole,
+# with parts, tracks, vias and pours kept NOTCH_KEEP clear of its centre on both sides for
+# the screw head
+NOTCH_R, NOTCH_KEEP = 1.1, 2.1
+NOTCHES = []
 GAP = 0.15
 
 PLAN = {
@@ -92,6 +97,7 @@ if os.environ.get('PLAN_FILE'):
     _g = {'H': H, 'W': W}
     exec(open(os.environ['PLAN_FILE']).read(), _g)
     PLAN, ESCAPE = _g['PLAN'], _g.get('ESCAPE', ESCAPE)
+    NOTCHES = _g.get('NOTCHES', NOTCHES)
     HOLES &= set(PLAN)   # a plan without mounting holes
 
 
@@ -99,7 +105,7 @@ def main(src, dst):
     b = pcbnew.LoadBoard(src)
     # drop keep-outs from an earlier run of this script, so moved holes don't leave stale ones
     # (b.Remove() leaves the other SWIG proxies dangling, so save and reload afterwards)
-    stale = [z for z in b.Zones() if z.GetIsRuleArea() and z.GetZoneName().endswith('insert keep-out')]
+    stale = [z for z in b.Zones() if z.GetIsRuleArea() and z.GetZoneName().endswith(('insert keep-out', 'notch keep-out'))]
     if stale:
         for z in stale:
             b.Remove(z)
@@ -126,13 +132,34 @@ def main(src, dst):
     for d in drawings:
         if d.GetLayerName() == 'Edge.Cuts':
             b.Remove(d)
-    r = pcbnew.PCB_SHAPE(b)
-    r.SetShape(pcbnew.SHAPE_T_RECT)
-    r.SetStart(pcbnew.VECTOR2I_MM(OX, OY))
-    r.SetEnd(pcbnew.VECTOR2I_MM(OX + W, OY + H))
-    r.SetLayer(pcbnew.Edge_Cuts)
-    r.SetWidth(pcbnew.FromMM(0.1))
-    b.Add(r)
+    # the outline clockwise from the top-left corner, each notch a half circle biting inwards
+    def edge(shape, *pts):
+        g = pcbnew.PCB_SHAPE(b, shape)
+        if shape == pcbnew.SHAPE_T_ARC:
+            g.SetArcGeometry(*(pcbnew.VECTOR2I_MM(OX + x, OY + y) for x, y in pts))
+        else:
+            g.SetStart(pcbnew.VECTOR2I_MM(OX + pts[0][0], OY + pts[0][1]))
+            g.SetEnd(pcbnew.VECTOR2I_MM(OX + pts[1][0], OY + pts[1][1]))
+        g.SetLayer(pcbnew.Edge_Cuts)
+        g.SetWidth(pcbnew.FromMM(0.1))
+        b.Add(g)
+    corners = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
+    used = 0
+    for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
+        L = math.hypot(x1 - x0, y1 - y0)
+        dx, dy = (x1 - x0) / L, (y1 - y0) / L
+        on = sorted(t for t in ((nx - x0) * dx + (ny - y0) * dy for nx, ny in NOTCHES
+                                if abs((nx - x0) * dy - (ny - y0) * dx) < 1e-6) if 0 < t < L)
+        used += len(on)
+        p = (x0, y0)
+        for t in on:
+            c = (x0 + dx * t, y0 + dy * t)
+            a, z = (c[0] - dx * NOTCH_R, c[1] - dy * NOTCH_R), (c[0] + dx * NOTCH_R, c[1] + dy * NOTCH_R)
+            edge(pcbnew.SHAPE_T_SEGMENT, p, a)
+            edge(pcbnew.SHAPE_T_ARC, a, (c[0] - dy * NOTCH_R, c[1] + dx * NOTCH_R), z)   # inwards: (-dy, dx)
+            p = z
+        edge(pcbnew.SHAPE_T_SEGMENT, p, (x1, y1))
+    assert used == len(NOTCHES), 'a notch is not on the outline: %s' % NOTCHES
 
     def put(ref, x, y, rot):
         f = fps[ref]
@@ -158,7 +185,7 @@ def main(src, dst):
     for ref in sorted(HOLES):
         f = fps[ref]
         c = f.GetPosition()
-        hole_c.append((pcbnew.ToMM(c.x), pcbnew.ToMM(c.y)))
+        hole_c.append((pcbnew.ToMM(c.x), pcbnew.ToMM(c.y), KEEP_R))
         for item in list(f.GraphicalItems()):
             if item.GetLayer() in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
                 f.Remove(item)
@@ -184,11 +211,26 @@ def main(src, dst):
             a = 2 * math.pi * i / 36
             o.Append(c.x + pcbnew.FromMM(KEEP_R * math.cos(a)), c.y + pcbnew.FromMM(KEEP_R * math.sin(a)))
         b.Add(z)
+    # notches: a rule area that also keeps parts out, so DRC flags a courtyard inside
+    for i, (nx, ny) in enumerate(NOTCHES):
+        hole_c.append((OX + nx, OY + ny, NOTCH_KEEP))
+        z = pcbnew.ZONE(b)
+        z.SetIsRuleArea(True)
+        z.SetLayerSet(pcbnew.LSET.AllCuMask())
+        for no in (z.SetDoNotAllowTracks, z.SetDoNotAllowVias, z.SetDoNotAllowZoneFills,
+                   z.SetDoNotAllowPads, z.SetDoNotAllowFootprints):
+            no(True)
+        z.SetZoneName('M2 %d notch keep-out' % (i + 1))
+        o = z.Outline(); o.NewOutline()
+        for k in range(36):
+            a = 2 * math.pi * k / 36
+            o.Append(pcbnew.FromMM(OX + nx + NOTCH_KEEP * math.cos(a)), pcbnew.FromMM(OY + ny + NOTCH_KEEP * math.sin(a)))
+        b.Add(z)
 
     def hits_hole(bx):
-        for cx, cy in hole_c:
+        for cx, cy, r in hole_c:
             nx, ny = min(max(cx, bx[0]), bx[2]), min(max(cy, bx[1]), bx[3])
-            if math.hypot(cx - nx, cy - ny) < KEEP_R:
+            if math.hypot(cx - nx, cy - ny) < r:
                 return True
         return False
 

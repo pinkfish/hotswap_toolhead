@@ -1,6 +1,6 @@
 # Layout scripts
 
-These scripts placed and routed `hardware/toolhead_usb.kicad_pcb` (18 × 23.5 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
+These scripts placed and routed `hardware/toolhead_usb.kicad_pcb` (19.5 × 23.5 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
 
 ```
 git show stack:hardware/toolhead_logic.kicad_pcb > donor.kicad_pcb
@@ -35,7 +35,7 @@ The layout isn't finished at that point. The board is always fabricated in a pan
 - **Freerouting 1.9.0:** set `FREEROUTING_JAR` to the jar. It isn't in the repo. 2.x crashed or hung on this board.
 - **Java 21 or newer:** set `JAVA` if `java` isn't on the path. Freerouting 1.9.0 opens its window while it routes.
 
-Other settings: `BW`/`BH` set the board size (`run_usb.sh` defaults to 18 × 23.5, `run_narrow.sh` to 27 × 36, `run_layout.sh` to 31 × 36), `U6_AT` the MCU's place in `run_usb.sh` (default: centred, 12.2 mm down); `V24_TOP` (logic board) sets the outline of the top-layer +24V pour, `IN2_SPLIT` instead makes In2 a +24V strip and a +3V3 plane (tried first; it left too little routing room); `C1Y`, `U6X` and `U6Y` move C1 and the MCU in `run_layout.sh`. `MAZE_ITER` sets the maze clean-up passes (default 6), `SOFT_ITERS` how many of them may rip up unlocked routes. `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`. `HARD` lists the nets maze-routed and locked before Freerouting (`run_usb.sh`: none, `usb_pair_pre.py` lays the pair instead; `run_narrow.sh`: its own default list; `HARD=` skips it).
+Other settings: `BW`/`BH` set the board size (`run_usb.sh` defaults to 19.5 × 23.5, `run_narrow.sh` to 27 × 36, `run_layout.sh` to 31 × 36), `U6_AT` the MCU's place in `run_usb.sh` (default: centred, 12.2 mm down); `V24_TOP` (logic board) sets the outline of the top-layer +24V pour, `IN2_SPLIT` instead makes In2 a +24V strip and a +3V3 plane (tried first; it left too little routing room); `C1Y`, `U6X` and `U6Y` move C1 and the MCU in `run_layout.sh`. `MAZE_ITER` sets the maze clean-up passes (default 6), `SOFT_ITERS` how many of them may rip up unlocked routes. `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`. `HARD` lists the nets maze-routed and locked before Freerouting (`run_usb.sh`: none, `usb_pair_pre.py` lays the pair instead; `run_narrow.sh`: its own default list; `HARD=` skips it).
 
 Freerouting 1.9.0 isn't deterministic: the same pre-route board gives different results from run to run, and a run can end with a connection or two open. Run it again a few times rather than adding maze passes. On the USB board the maze's rip-up passes made things worse; `SOFT_ITERS=0` keeps it to adding copper. When the same connection stays open across runs, it needs a pre-route or a placement change instead.
 

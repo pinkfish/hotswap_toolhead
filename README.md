@@ -4,7 +4,7 @@ A small USB toolhead board for 3D printers. It reads a thermistor (100k NTC or P
 
 The heater is not on this board: it is wired straight to the printer's mainboard on its own cable.
 
-- **Board:** one 18 × 23.5 mm, 4-layer board, no mounting holes (hold it in a printed pocket or clip).
+- **Board:** one 19.5 × 23.5 mm, 4-layer board, held by two M2 screws in half-hole notches on its side edges.
 - **Plugs:** USB-C on the top edge. A 6-pin JST-SH (1 mm pitch) on the bottom edge carries fan, thermistor and switch.
 - **Power:** USB VBUS (5 V) feeds a 3.3 V LDO for the logic, and the fan through a PTC.
 - **Other branches:** `usb-only` is the first version of this board (22 × 30 mm, JST-PH plug, M2.5 holes). `stack` is the 24 V CAN version: two stacked 27 × 27 mm boards with a 100 W heater output. `narrow-27` and `centre-j2` are the single-board 24 V versions.

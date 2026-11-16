@@ -1,11 +1,11 @@
 # Ordering from JLCPCB
 
-The USB toolhead board is ordered as a panel. JLCPCB's standard assembly needs a panel of at least 70 × 70 mm, and one board is 18 × 23.5 mm. There are three panel sizes; pick one and order from its folder:
+The USB toolhead board is ordered as a panel. JLCPCB's standard assembly needs a panel of at least 70 × 70 mm, and one board is 19.5 × 23.5 mm. There are three panel sizes; pick one and order from its folder:
 
 | Folder | Boards | Layout | Panel size |
 | --- | --- | --- | --- |
-| `panel/` | 9 | 3 × 3 | 72.3 × 92.8 mm |
-| `panel6/` | 6 | 3 columns × 2 rows | 72.3 × 72.0 mm |
+| `panel/` | 9 | 3 × 3 | 76.8 × 92.8 mm |
+| `panel6/` | 6 | 3 columns × 2 rows | 76.8 × 72.0 mm |
 | `panel4/` | 4 | 2 × 2 | 72.0 × 72.0 mm |
 
 Where the boards come to less than 72 mm on a side, `tools/make_panel.sh` widens the gap to the frame on that side. All three panels are inside JLCPCB's standard-assembly range (70 × 70 to 250 × 250 mm).
