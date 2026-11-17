@@ -1,13 +1,13 @@
 """Generate KiCad files for the toolhead board from design.py.
 
-Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_can):
+Outputs (in hardware/), for each board NAME in design.BOARDS (toolhead_logic, toolhead_power):
   NAME.kicad_pro       project file (only if missing; copied from an existing project, for its
                        DRC severities)
   NAME.kicad_sch       schematic: every pin tied to its net with a label
   NAME.kicad_dru       custom design rules (current, clearance)
   NAME-bom-jlcpcb.csv  BOM in JLCPCB's upload format
 and bom_jlcpcb.csv, the BOM for all boards together.
-The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_can.sh, which
+The boards themselves (NAME.kicad_pcb) are built and routed by tools/layout/run_stack.sh, which
 makes the footprints from the schematic's netlist (tools/layout/from_netlist.py). Symbol UUIDs
 are derived from the board and reference, so regenerating a schematic keeps the footprints
 linked to their symbols.
@@ -70,6 +70,7 @@ LAYOUT_NAMES = {
     id(design.IN6_LAYOUT): "CONN_IN_6",
     id(design.HEAT4_LAYOUT): "CONN_HEAT_4",
     id(design.USB4_LAYOUT): "CONN_USB_4",
+    id(design.LINK_LAYOUT): "CONN_2X4",
 }
 TWO_PIN_NAMES = {"R": ("~", "~"), "C": ("~", "~"), "L": ("~", "~"), "CP": ("+", "-"), "D": ("K", "A")}
 
@@ -235,11 +236,17 @@ def build_schematic(board):
             else:
                 items.append(f'  (no_connect (at {f(ex)} {f(ey)}) (uuid {q(uid())}))')
 
+    other = [b for b in design.BOARDS if b != board][0]
     notes = [
         title + " - generated from design.py. Each pin connects through a net label.",
-        "24 V and CAN in on J1; U1 (LMR16006, 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW) makes 3.3 V from 24 V or USB VBUS (J5).",
+        "J%s is the board-to-board link to the %s board: pin n there carries the same net as pin n here." % (
+            "6" if board == "logic" else "7", other),
+    ] + ([
+        "24 V and CAN in on J1. U3 pin 5 is TCAN3414 SHDN: left open (internal pull-down keeps it on).",
         "Verify U6 pins against ST DS13560 (STM32G0B1 UFQFPN48 pinout) before layout.",
-    ]
+    ] if board == "logic" else [
+        "U1 is TI LMR16006X (SOT-23-6): 1 CB, 2 GND, 3 FB, 4 SHDN, 5 VIN, 6 SW. It makes 3.3 V from 24 V or USB VBUS.",
+    ])
     for i, n in enumerate(notes):
         items.append(f'  (text {q(n)} (exclude_from_sim no) (at 15.24 {f(12.7 + i * 3.81)} 0)'
                      f' (effects (font (size 1.778 1.778)) (justify left bottom)) (uuid {q(uid())}))')
@@ -269,7 +276,7 @@ DRU = """(version 1)
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
 (rule "Fan current"
-  (condition "A.NetName == '/VBUS' || A.NetName == '/VIN_LOGIC' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
+  (condition "A.NetName == '/VBUS' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
   (constraint track_width (min 0.3mm)))
 """
 
@@ -299,7 +306,7 @@ def main():
         if not os.path.exists(pro):
             # the other board's project (or the old single board's) carries the DRC severities
             # and netclasses; the layout run rewrites the netclasses
-            src = [os.path.join(OUT, n + ".kicad_pro") for n in ("toolhead_logic", "toolhead_power", "toolhead")]
+            src = [os.path.join(OUT, n + ".kicad_pro") for n in ("toolhead_logic", "toolhead_power", "toolhead_can", "toolhead")]
             # (the stack's projects are on branch `stack`; without one KiCad fills in its defaults)
             src = [f for f in src if os.path.exists(f)]
             d = json.load(open(src[0])) if src else {}

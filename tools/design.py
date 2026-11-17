@@ -1,20 +1,21 @@
-"""Single source of truth for the CAN toolhead board.
+"""Single source of truth for the two-board CAN toolhead stack.
 
 Every part lists its symbol style, footprint (KiCad standard library name),
 value, LCSC number and a {pin_number: net} map. Pins not listed are
 no-connect. The generator builds the schematic and the BOM from this file,
 so edit connections here, not in the outputs.
 
-One board on a 24 V CAN bus: the STM32G0B1 runs Klipper over CAN. 24 V and the
-bus come in on one 6-pin JST-XH; the heater (up to 100 W) leaves on a 4-pin JST-XH,
-each heater current path on two contacts (3 A each); the fan (24 V), thermistor
-and a switch sensor share a 6-pin JST-SH. USB (for the first flash and bench use)
-is a 4-pin JST-SH carrying VBUS, D-, D+ and GND, wired to a USB socket elsewhere;
-it powers the logic on its own. This is the usb-sh board with the stack's
-(branch `stack`) power input, 3.3 V buck, CAN and heater blocks added back, less
-the stack's reverse-polarity FET (the input plug is keyed). Parts it shares with
-the stack keep their references, so the stack logic board's routed footprints
-carry over (tools/layout/from_netlist.py).
+The can-sh board (one 27 x 34 mm board on a 24 V CAN bus, STM32G0B1 running Klipper
+over CAN, all-JST plugs) split over two 25 mm-wide boards joined by a 2x4 2.54 mm
+board-to-board link (LINK):
+  logic (top): 24 V + CAN in on a 6-pin JST-XH with the fuse, TVS and input cap; MCU,
+    CAN, USB (4-pin JST-SH), the fan driver and the 6-pin JST-SH for fan, thermistor
+    and switch; the link socket J6 on its underside
+  power (under it): the heater's 4-pin JST-XH, the heater FET and gate driver, the 3.3 V
+    buck; the link header J7 on its top side
+Each part's board is BOARD_OF[block] unless the part sets board=. Net names are the
+same on both boards. Parts shared with the stack keep their references, so the
+stack logic board's routed footprints carry over (tools/layout/from_netlist.py).
 """
 
 # ---------------------------------------------------------------------------
@@ -66,6 +67,12 @@ IN6_LAYOUT = ([(1, "+24V"), (2, "+24V"), (3, "GND"), (4, "GND")], [(5, "CANH"), 
 HEAT4_LAYOUT = ([(1, "HEAT-"), (2, "HEAT-")], [(3, "HEAT+"), (4, "HEAT+")])
 # USB 2.0 on 4 wires, in USB-A pin order.
 USB4_LAYOUT = ([(1, "VBUS"), (2, "D-")], [(3, "D+"), (4, "GND")])
+# Board-to-board link, 2x4: odd pins one row, even pins the other.
+LINK_LAYOUT = ([(n, str(n)) for n in (1, 3, 5, 7)], [(n, str(n)) for n in (2, 4, 6, 8)])
+
+# Link pin: net, the same on both boards. 3 A contacts: two for +24V (2.35 A each with a 100 W
+# heater and the fan), three for the heater's return.
+LINK = {1: "+24V", 2: "+24V", 3: "GND", 4: "GND", 5: "VIN_LOGIC", 6: "GND", 7: "HEAT_PWM", 8: "+3V3"}
 
 # Footprints (KiCad 8 standard libraries). "" = assign after choosing part.
 FP = {
@@ -95,6 +102,8 @@ FP = {
     "SH4": "Connector_JST:JST_SH_SM04B-SRSS-TB_1x04-1MP_P1.00mm_Horizontal",
     "XH6": "Connector_JST:JST_XH_S6B-XH-SM4-TB_1x06-1MP_P2.50mm_Horizontal",
     "XH4": "Connector_JST:JST_XH_S4B-XH-SM4-TB_1x04-1MP_P2.50mm_Horizontal",
+    "SOCKET8": "Connector_PinSocket_2.54mm:PinSocket_2x04_P2.54mm_Vertical_SMD",
+    "HEADER8": "Connector_PinHeader_2.54mm:PinHeader_2x04_P2.54mm_Vertical",
 }
 
 
@@ -117,13 +126,14 @@ PARTS = [
       lcsc="C191914", block="Power input", layout=IN6_LAYOUT),
     two("F1", "R", "8A 1206 fuse (0458008.DR)", "F1206", "VIN_RAW", "+24V", lcsc="C187562", block="Power input"),
     two("D1", "D", "SMF33CA", "SOD123F", "+24V", "GND", lcsc="C19077520", block="Power input"),
-    # C1 at the input, C2 by the heater FET
+    # C1 at the input, C2 by the heater FET on the power board
     two("C1", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
-    two("C2", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input"),
+    two("C2", "C", "10uF 50V X5R", "C1206", "+24V", "GND", lcsc="C13585", block="Power input", board="power"),
     # ---------------- Logic supply ----------------
-    # 24 V or USB VBUS, whichever is higher, to a 3.3 V buck
+    # 24 V or USB VBUS, whichever is higher, to a 3.3 V buck. D3 stays by the USB plug on the
+    # logic board; VIN_LOGIC crosses the link to the buck
     two("D7", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "+24V", lcsc="C22466354", block="Logic supply"),
-    two("D3", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "VBUS", lcsc="C22466354", block="Logic supply"),
+    two("D3", "D", "DSK110 100V 1A", "SOD123F", "VIN_LOGIC", "VBUS", lcsc="C22466354", block="Logic supply", board="logic"),
     two("C4", "C", "10uF 50V X5R", "C1206", "VIN_LOGIC", "GND", lcsc="C13585", block="Logic supply"),
     two("C5", "C", "100nF", "C0603", "VIN_LOGIC", "GND", lcsc="C14663", block="Logic supply"),
     P("U1", "box", "LMR16006XDDC", "SOT236",
@@ -143,12 +153,13 @@ PARTS = [
     # Fan, switch and status LED are on the pins nearest their parts (Klipper drives a fan or
     # reads a switch on any GPIO): fan PB13 at the corner by the thermistor's PB12, status LED
     # PA15 next to SWCLK, switch PB3 mid-way down the side facing the switch filter (PB8,
-    # beside the heater's PB9, was boxed in by the heater's escape).
+    # beside the old heater pin PB9, was boxed in by its escape). The heater's PWM is on PD0, at
+    # the top of the side facing the link socket J6 (Klipper drives a heater on any GPIO).
     P("U6", "box", "STM32G0B1CEU6", "QFN48",
       {4: "+3V3", 5: "VREFP", 6: "+3V3", 7: "GND", 8: "OSC_IN", 9: "OSC_OUT",
        10: "NRST", 19: "CAN_RX", 20: "CAN_TX", 24: "TH_ADC", 25: "FAN_PWM",
        33: "USB_D_N", 34: "USB_D_P", 36: "SWCLK",
-       37: "LED_STAT", 42: "SENS_IN", 48: "HEAT_PWM", 49: "GND"},
+       37: "LED_STAT", 38: "HEAT_PWM", 42: "SENS_IN", 49: "GND"},
       lcsc="C2829190", block="MCU", layout=STM32_LAYOUT),
     two("C9", "C", "100nF", "C0402", "+3V3", "GND", lcsc="C1525", block="MCU"),
     two("C10", "C", "10uF 25V X5R", "C0805", "+3V3", "GND", lcsc="C15850", block="MCU"),
@@ -210,6 +221,7 @@ PARTS = [
     two("R13", "R", "10k", "R0402", "VIN_LOGIC", "GATE_12V", block="Heater"),
     two("D10", "D", "BZX585-C12 12V", "SOD523", "GATE_12V", "GND", lcsc="C455018", block="Heater"),
     two("C21", "C", "1uF", "C0402", "GATE_12V", "GND", lcsc="C52923", block="Heater"),
+    # On the power board, so the heater stays off with the boards apart
     two("R14", "R", "10k", "R0402", "HEAT_PWM", "GND", block="Heater"),
     # ---------------- Plug ----------------
     # One 1x6 1 mm JST-SH, right-angle SMD (1 A per contact, 28-32 AWG): fan, thermistor,
@@ -248,11 +260,24 @@ for p in PARTS:
     if p["kind"] == "R" and p["fp"].endswith("R_0402_1005Metric") and not p["lcsc"]:
         p["lcsc"] = {"0R": "C17168", "1k": "C11702", "10k": "C25744"}.get(p["value"], "")
 
-BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Plug", "Fan", "Thermistor", "Sensor"]
+PARTS += [
+    # ---------------- Board-to-board link ----------------
+    # SMD socket on the logic board's underside, through-hole header on the power board's top;
+    # 8.5 mm socket + 2.5 mm header spacer = 11 mm between the boards
+    P("J6", "box", "Link socket 2x4 (HC-PM254-8.5H-2x4PS)", "SOCKET8",
+      dict(LINK), lcsc="C22373945", block="Link", layout=LINK_LAYOUT, board="logic"),
+    P("J7", "box", "Link header 2x4 (HX PZ2.54-2x4P ZZ)", "HEADER8",
+      dict(LINK), lcsc="C32713277", block="Link", layout=LINK_LAYOUT, board="power"),
+]
+
+BLOCK_ORDER = ["Power input", "Logic supply", "MCU", "CAN", "USB", "Heater", "Plug", "Fan", "Thermistor", "Sensor", "Link"]
+BOARD_OF = {"Power input": "logic", "Logic supply": "power", "MCU": "logic", "CAN": "logic", "USB": "logic",
+            "Heater": "power", "Plug": "logic", "Fan": "logic", "Thermistor": "logic", "Sensor": "logic"}
 # board: KiCad project name in hardware/, title
-BOARDS = {"can": ("toolhead_can", "CAN toolhead board - heater, fan, thermistor and switch")}
+BOARDS = {"logic": ("toolhead_logic", "CAN toolhead stack - logic board"),
+          "power": ("toolhead_power", "CAN toolhead stack - power board")}
 for p in PARTS:
-    p["board"] = p["board"] or "can"
+    p["board"] = p["board"] or BOARD_OF[p["block"]]
 
 
 def parts(board):

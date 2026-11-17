@@ -1,8 +1,8 @@
 {
  "layout": {
-  "type": "grid",
-  "rows": 3,
-  "cols": 3,
+  "type": "plugin",
+  "code": "tools/panel_stack.py.StackLayout",
+  "arg": "hardware/panel/src_power.kicad_pcb;3;3",
   "hspace": "2mm",
   "vspace": "2mm",
   "renamenet": "Board_{n}-{orig}",
@@ -41,7 +41,7 @@
  },
  "text": {
   "type": "simple",
-  "text": "hotswap_toolhead usb 3x3  JLCJLCJLCJLC",
+  "text": "hotswap_toolhead can stack 3x3 logic+power  JLCJLCJLCJLC",
   "anchor": "mb",
   "voffset": "-2.5mm",
   "width": "1.5mm",

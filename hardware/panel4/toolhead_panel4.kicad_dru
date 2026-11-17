@@ -10,5 +10,5 @@
   (constraint diff_pair_gap (opt 0.2mm))
   (constraint track_width (opt 0.3mm)))
 (rule "Fan current"
-  (condition "A.NetName == '/VBUS' || A.NetName == '/VIN_LOGIC' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
+  (condition "A.NetName == '/VBUS' || A.NetName == '/FAN_P' || A.NetName == '/FAN_N'")
   (constraint track_width (min 0.3mm)))

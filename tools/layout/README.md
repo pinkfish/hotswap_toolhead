@@ -1,28 +1,29 @@
 # Layout scripts
 
-These scripts placed and routed `hardware/toolhead_can.kicad_pcb` (27 × 34 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
+These scripts placed and routed `hardware/toolhead_logic.kicad_pcb` and `hardware/toolhead_power.kicad_pcb` (both 25 × 26 mm, 4 layers). They are kept so the layout can be redone after a netlist or placement change. They are not needed to open, check or order the board.
 
 ```
 git show stack:hardware/toolhead_logic.kicad_pcb > donor.kicad_pcb
-SRC=donor.kicad_pcb tools/layout/run_can.sh /path/to/work
+SRC=donor.kicad_pcb tools/layout/run_stack.sh logic /path/to/logic-work
+SRC=donor.kicad_pcb tools/layout/run_stack.sh power /path/to/power-work
 ```
 
-`run_can.sh` lays out the board from its schematic, in these steps:
+`run_stack.sh` lays out one board of the stack from its schematic, in these steps:
 
 1. Exports the netlist.
 2. Builds a board from it with `from_netlist.py`. Footprints come from the stack's logic board (`SRC`) wherever the part and footprint match, so its pad and courtyard edits carry over.
-3. Brings that board's routed MCU corner across, turned with U6 to `U6_AT` (`corner_import.py`).
-4. Places the rest from `plan_can.py`, and cuts the two M2 notches into the outline.
-5. Pours the heater's power path on the top layer (`can_pre.py`): VIN_RAW, the +24V strip, HEAT_N and the GND return.
+3. On the logic board, brings the donor's routed MCU corner across, turned with U6 to `U6_AT` (`corner_import.py`).
+4. Places the rest from `plan_logic.py` or `plan_power.py`, and cuts the two M2 notches into the outline (the same on both).
+5. Pours the board's share of the heater's power path (`stack_logic_pre.py` or `stack_power_pre.py`, with `pours.py`).
 6. Adds the In1 GND plane and the plane fan-out, keeping other nets' vias out of the pours.
 7. Routes the rest with Freerouting, takes other nets' copper back out of the pours (`pour_clear.py`), then runs the maze clean-up loop.
 
-It copies the project files from `hardware/` into the work directory, leaves `board.kicad_pcb` there and never writes to `hardware/`. Check the result in KiCad, then copy it over `hardware/toolhead_can.kicad_pcb` and run `tools/verify.py`.
+It copies the project files from `hardware/` into the work directory, leaves `board.kicad_pcb` there and never writes to `hardware/`. Check the result in KiCad, then copy it over `hardware/toolhead_logic.kicad_pcb` or `toolhead_power.kicad_pcb` and run `tools/verify.py` and `tools/check_stack.py`.
 
 The layout isn't finished at that point. The board is always fabricated in a panel (see "Panel" in `docs/design_spec.md`), so every layout change must be followed by:
 
-1. `tools/fab.sh`, which regenerates `gerber/can/`.
-2. `tools/make_panel.sh` with 9, 6 and 4, which rebuilds `hardware/panel*/` and `gerber/panel*/`. Each must report panel DRC at 0 errors and 0 unconnected.
+1. `tools/fab.sh`, which regenerates `gerber/logic/` and `gerber/power/`.
+2. `tools/make_panel.sh` with 9, 6 and 4, which rebuilds `hardware/panel*/` and `gerber/panel*/` with both boards (`tools/panel_stack.py` lays them out in columns of pairs). Each must report panel DRC at 0 errors and 0 unconnected.
 3. Committing the board, `gerber/` and `hardware/panel*/` together.
 
 `tools/panel_tabs.py` finds the tab positions itself: two tabs on each side edge, as far apart as the clear stretches of edge allow, where no copper is within 0.6 mm of either side edge, no part's courtyard comes within 0.35 mm of it and no notch keep-out reaches it. It stops with an error if the board has no room for two.
@@ -35,7 +36,7 @@ The layout isn't finished at that point. The board is always fabricated in a pan
 - **Freerouting 1.9.0:** set `FREEROUTING_JAR` to the jar. It isn't in the repo. 2.x crashed or hung on this board.
 - **Java 21 or newer:** set `JAVA` if `java` isn't on the path. Freerouting 1.9.0 opens its window while it routes.
 
-Other settings: `BW`/`BH` set the board size (`run_can.sh` defaults to 27 × 34, `run_narrow.sh` to 27 × 36, `run_layout.sh` to 31 × 36), `U6_AT` the MCU's place in `run_can.sh` (default: centred, 14.5 mm down); `V24_TOP` (logic board) sets the outline of the top-layer +24V pour, `IN2_SPLIT` instead makes In2 a +24V strip and a +3V3 plane (tried first; it left too little routing room); `C1Y`, `U6X` and `U6Y` move C1 and the MCU in `run_layout.sh`. `MAZE_ITER` sets the maze clean-up passes (default 6), `SOFT_ITERS` how many of them may rip up unlocked routes. `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`. `HARD` lists the nets maze-routed and locked before Freerouting (`run_can.sh`: none; `run_narrow.sh`: its own default list; `HARD=` skips it).
+Other settings: `BW`/`BH` set the board size (`run_stack.sh` defaults to 25 × 26, `run_narrow.sh` to 27 × 36, `run_layout.sh` to 31 × 36), `U6_AT` the MCU's place on the logic board in `run_stack.sh` (default 9.5, 15.5); `V24_TOP` (logic board) sets the outline of the top-layer +24V pour, `IN2_SPLIT` instead makes In2 a +24V strip and a +3V3 plane (tried first; it left too little routing room); `C1Y`, `U6X` and `U6Y` move C1 and the MCU in `run_layout.sh`. `MAZE_ITER` sets the maze clean-up passes (default 6), `SOFT_ITERS` how many of them may rip up unlocked routes. `FR_PASSES` and `FR_TIMEOUT` control Freerouting. `PRE_ONLY=1` stops after the Specctra export, leaving `pre_route.kicad_pcb` and `toolhead.dsn`. `HARD` lists the nets maze-routed and locked before Freerouting (`run_stack.sh`: none; `run_narrow.sh`: its own default list; `HARD=` skips it).
 
 Freerouting 1.9.0 isn't deterministic: the same pre-route board gives different results from run to run, and a run can end with a connection or two open. Run it again a few times rather than adding maze passes. On the USB boards the maze's rip-up passes made things worse; `SOFT_ITERS=0` keeps it to adding copper. When the same connection stays open across runs, it needs a pre-route or a placement change instead.
 
@@ -43,7 +44,7 @@ Freerouting 1.9.0 isn't deterministic: the same pre-route board gives different 
 
 | Script | What it does |
 |---|---|
-| `from_netlist.py` | Builds a board from the schematic netlist, taking each footprint from the donor board when the part and footprint match (H1/H2 always, unless `KEEP` lists other references; `run_can.sh` keeps none), otherwise from the KiCad or project library |
+| `from_netlist.py` | Builds a board from the schematic netlist, taking each footprint from the donor board when the part and footprint match (H1/H2 always, unless `KEEP` lists other references; `run_stack.sh` keeps none), otherwise from the KiCad or project library |
 | `strip.py` | Copies the board without tracks, vias and zones, and resets pad zone connections |
 | `place.py` | Places parts from `PLAN` (x, y, rotation, side, fixed), draws the outline with any edge notches (`NOTCHES`, an M2 half-hole each, with a keep-out for the screw head) and hole keep-outs (when the plan has holes), and pushes movable parts apart until no courtyards overlap. A plan can set `EDGE_OK`, the parts allowed to overhang the outline |
 | `sync_nets.py` | Re-assigns pad nets from the schematic netlist, so a pin change in `design.py` reaches the stripped board |
@@ -55,9 +56,13 @@ Freerouting 1.9.0 isn't deterministic: the same pre-route board gives different 
 | `heat_pre.py` | HEAT_PWM from its escape via under SW1 and down the right edge to R13/R14; R14's GND tied to Q2's source and Q2 pin 1's via; NRST from SW1 round that run to C15 |
 | `buck_pre.py` | Buck links on B.Cu: VIN_LOGIC from D7 to U1/C4/C5, BUCK_SW from U1 to L1 and D9, BOOT, and FB up to R3/R2 |
 | `planes_fanout.py` | In1 GND and In2 +24V planes, with a via from every plane pad. With `V24_TOP` (the logic board), +24V is a top-layer pour along the top edge instead, from Q1's source to J3's +24V pins, its bottom-side pads get vias inside it, and In2 is left to the router. `SKIP_ROUTED` leaves pads that pre-placed copper already ties to a via |
-| `plan_can.py` | `run_can.sh`: the `PLAN` that `place.py` reads (`PLAN_FILE`), with the notches. Fixed: the connectors, SW1, U6 with its corner parts, and the power-path parts (F1, D1, Q2, U7) that `can_pre.py` pours from; the rest are pushed apart |
-| `can_pre.py` | `run_can.sh`: the heater's 4.2 A path as top-layer pours built from the pads: VIN_RAW from J1 to F1; the +24V strip, 2.6 mm wide, from F1 to J3 with D1's pad; HEAT_N from J3 to Q2's drain; and the GND return from Q2's source and D1 up to J1's GND pins |
-| `pour_clear.py` | `run_can.sh`, after Freerouting: removes other nets' tracks and vias from the pours (Freerouting treats them as planes it may cross), for the maze loop to reroute |
+| `plan_logic.py`, `plan_power.py` | `run_stack.sh`: the `PLAN`s that `place.py` reads (`PLAN_FILE`), with the same notches on both. The power board's J7 is placed from the logic board's J6 so each pin sits under its contact; the power-path parts are fixed, the rest pushed apart |
+| `stack_logic_pre.py` | `run_stack.sh logic`: VIN_RAW from J1 to F1 on top; +24V from F1, D1 and F2 through a via array to a bottom pour on J6's +24V pins and C1; a bottom GND pour on J6's GND pins with vias into the plane |
+| `stack_power_pre.py` | `run_stack.sh power`: a +24V strip from J7's +24V pins to J3's; HEAT_N from J3 to Q2's drain; Q2's sources joined, with two via rows into the plane |
+| `pours.py` | Helpers for those two: pours as unions of boxes from the pads, and via arrays where each via clears other nets' copper, keep-outs and SMD pads |
+| `plan_can.py` | Branch `can-sh`'s `run_can.sh`: the `PLAN` that `place.py` reads (`PLAN_FILE`), with the notches. Fixed: the connectors, SW1, U6 with its corner parts, and the power-path parts (F1, D1, Q2, U7) that `can_pre.py` pours from; the rest are pushed apart |
+| `can_pre.py` | Branch `can-sh`'s `run_can.sh`: the heater's 4.2 A path as top-layer pours built from the pads: VIN_RAW from J1 to F1; the +24V strip, 2.6 mm wide, from F1 to J3 with D1's pad; HEAT_N from J3 to Q2's drain; and the GND return from Q2's source and D1 up to J1's GND pins |
+| `pour_clear.py` | `run_stack.sh` (and `run_can.sh`), after Freerouting: removes other nets' tracks and vias from the pours (Freerouting treats them as planes it may cross), for the maze loop to reroute |
 | `usb_pair_pre.py` | Branch `usb-sh`'s `run_usb.sh`: the USB pair from J5 through U5 to U6, with fixed coordinates: D+ strapped above J5's pad row and D− below it, each to a via in its U5 pin; D− straight down to U6 pin 33 on B.Cu; D+ over D−'s via on In2 to a second via and down to pin 34; a GND via in U5 pin 2; J5's right VBUS pad and CC1 out along under the pad row to vias right of J5's shell leg, VBUS on to C17. Drawn for a 22 mm board and shifted with the centre line (`BW`). Stops if the pads have moved |
 | `corner_import.py` | Before placing: puts U6 at its new place and rotation and brings the donor's crystal, load caps, NRST cap and VDD/VREF+ decoupling corner across with it, turned to match, with that corner's bottom-side copper and plane vias (including the pin escapes that start on U6's pads) |
 | `crtyd_trim.py` | Cuts a footprint's courtyard to its pads and body plus a margin (the stack's J3, so the panel's mouse bites cleared it) |
